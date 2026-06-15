@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CompanyService } from '../../services/company';
 import { Router } from '@angular/router';
 import { TableCompany } from '../../components/table-company/table-company';
@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../../../shared/components/confirm-dialog/confirm
   imports: [TableCompany, ConfirmDialog],
   templateUrl: './page-list-companies.html',
   styleUrl: './page-list-companies.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class PageListCompanies implements OnInit {
   // INJECT COMPANY SERVICE

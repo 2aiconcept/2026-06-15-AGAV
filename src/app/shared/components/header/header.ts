@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Auth } from '../../services/auth';
 
 @Component({
@@ -6,6 +6,7 @@ import { Auth } from '../../services/auth';
   imports: [],
   templateUrl: './header.html',
   styleUrl: './header.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Header {
 
@@ -15,4 +16,6 @@ export class Header {
   protected logout(): void {
     this.auth.logout()
   }
+  
+
 }

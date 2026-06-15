@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { CompanyPayload } from '../../models/company';
 import { form, FormField, minLength, required } from '@angular/forms/signals';
 
@@ -7,6 +7,7 @@ import { form, FormField, minLength, required } from '@angular/forms/signals';
   imports: [FormField],
   templateUrl: './form-company.html',
   styleUrl: './form-company.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormCompany {
 

@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, numberAttribute, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, numberAttribute, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { CompanyService } from '../../services/company';
 import { Company, CompanyPayload } from '../../models/company';
@@ -9,6 +9,7 @@ import { FormCompany } from '../../components/form-company/form-company';
   imports: [FormCompany],
   templateUrl: './page-edit-company.html',
   styleUrl: './page-edit-company.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class PageEditCompany implements OnInit {
   private readonly companyService = inject(CompanyService);

@@ -12,16 +12,9 @@ export const routes: Routes = [
         component: PageConnect,
     },
     {
-        path: 'list-companies',
-        loadComponent: () => import('./feature-companies/pages/page-list-companies/page-list-companies'),
-    },
-    {
-        path: 'add-company',
-        loadComponent: () => import('./feature-companies/pages/page-add-company/page-add-company'),
-    },
-    {
-        path: 'edit-company/:id',
-        loadComponent: () => import('./feature-companies/pages/page-edit-company/page-edit-company')
+        path: 'companies',
+        loadChildren: () =>
+            import('./feature-companies/companies.routes').then((m) => m.COMPANIES_ROUTES),
     },
     {
         path: '**',

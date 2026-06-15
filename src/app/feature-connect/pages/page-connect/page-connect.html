@@ -1,1 +1,1 @@
-<app-form-connect />
+<app-form-connect [model]=" model()"  (signIn)="connect($event)" (signUp)="createAccount($event)"/>

@@ -1,4 +1,4 @@
-import { Component, inject, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Nav } from './shared/components/nav/nav';
 import { Header } from './shared/components/header/header';
@@ -9,6 +9,7 @@ import { Auth } from './shared/services/auth';
   imports: [RouterOutlet, Nav, Header],
   templateUrl: './app.html',
   styleUrl: './app.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
   // inject le service auth to get isAuthendicated property and use it in html

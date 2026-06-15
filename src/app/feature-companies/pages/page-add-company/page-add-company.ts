@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CompanyService } from '../../services/company';
 import { Router } from '@angular/router';
 import { CompanyPayload } from '../../models/company';
@@ -9,6 +9,7 @@ import { FormCompany } from '../../components/form-company/form-company';
   imports: [FormCompany],
   templateUrl: './page-add-company.html',
   styleUrl: './page-add-company.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class PageAddCompany {
   private readonly companyService = inject(CompanyService);

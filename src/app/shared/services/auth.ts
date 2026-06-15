@@ -19,6 +19,8 @@ export class Auth {
 
   private readonly router = inject(Router);
 
+  public test = signal('christophe')
+
 
   // État dérivé : connecté dès qu'un email est présent.
   readonly isAuthenticated = computed(() => this.userEmail() !== null);

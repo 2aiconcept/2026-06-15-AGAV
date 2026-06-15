@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { Company } from '../../models/company';
 
 @Component({
@@ -6,6 +6,7 @@ import { Company } from '../../models/company';
   imports: [],
   templateUrl: './table-company.html',
   styleUrl: './table-company.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableCompany {
   /** Liste à afficher, fournie par le composant parent (la page). */

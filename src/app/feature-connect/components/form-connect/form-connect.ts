@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { Auth } from '../../../shared/services/auth';
 import { Router } from '@angular/router';
 
@@ -13,13 +13,18 @@ const PASSWORD_MIN_LENGTH = 6;
   imports: [FormField],
   templateUrl: './form-connect.html',
   styleUrl: './form-connect.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormConnect {
-  // inject router
-  private readonly router = inject(Router)
+  // signal input()
+  model = input.required<Credentials>();
+  // signalOutput()
+  signIn = output<Credentials>();
+  signUp = output<Credentials>();
+  readonly modelForm = linkedSignal<Credentials>(() => this.model());
 
-  // inject Auth
-  private readonly auth = inject(Auth);
+
+
 
   /** Mode courant : connexion (par défaut) ou inscription. */
   protected readonly mode = signal<ConnectMode>('signin');
@@ -29,11 +34,9 @@ export class FormConnect {
     this.mode.update((current) => (current === 'signin' ? 'signup' : 'signin'));
   }
   
-  /** Données saisies par l'utilisateur, pilotées par le signal form. */
-  private readonly model = signal<Credentials>({ email: '', password: '' });
 
   /** Signal form : valeur + validation déclarative. */
-  protected readonly connectForm = form(this.model, (path) => {
+  protected readonly connectForm = form<Credentials>(this.modelForm, (path) => {
     required(path.email, {message : "Le format de l'email est obligatoire"});
     email(path.email, {message: "Le format de l'adresse email est invalide"});
     required(path.password, {message : "Le format de l'email est obligatoire"});
@@ -46,20 +49,13 @@ export class FormConnect {
     if (this.connectForm().invalid()) {
       return;
     }
-    const credentials = this.model();
+    const credentials = this.modelForm();
     if (this.mode() === 'signin') {
-      this.signin(credentials);
+      this.signIn.emit(this.modelForm())
     } else {
-      this.signup(credentials);
+      this.signUp.emit(this.modelForm())
     }
   }
 
-  private signin(credentials: Credentials): void {
-    // Connexion simulée : le service met à jour l'état et redirige.
-    this.auth.signin(credentials);
-  }
 
-  private signup(credentials: Credentials): void {
-    // TODO: brancher le service d'authentification (inscription)
-  }
 }
