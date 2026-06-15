@@ -9,5 +9,5 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Nav {
-  protected link1 = "/list-companies"
+  protected link1 = "/companies"
 }

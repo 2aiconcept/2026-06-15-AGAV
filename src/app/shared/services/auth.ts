@@ -33,7 +33,7 @@ export class Auth {
     // email in localstore to keep connection if user refresh web page
     localStorage.setItem(STORAGE_KEY, credentials.email);
     // redirection vers une route
-    this.router.navigate(['/list-companies'])
+    this.router.navigate(['/companies','list'])
 
   }
 

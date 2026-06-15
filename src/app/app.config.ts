@@ -12,3 +12,9 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient()
   ]
 };
+
+// montrer dans la doc pourquoi les .then sont inutiles dans le lazyloading de components
+// monter comment modeifier angular.json pour avoir d'offiche le OnPush à la creation de components avec angular cli
+// exercice découpage des rolutes pour toutes les features
+// envrironements avec switch dev vs prod dans angular.json 
+// libs et nx

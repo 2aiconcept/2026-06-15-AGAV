@@ -50,11 +50,11 @@ export default class PageListCompanies implements OnInit {
   // METHOD TO REDIRECT TO ADD
   /** Redirige vers le formulaire d'ajout d'une entreprise. */
   protected onAddCompany(): void {
-    this.router.navigate(['/add-company']);
+    this.router.navigate(['companies','add']);
   }
 
   editItem(id: number) {
-    this.router.navigate(['/edit-company', id])
+    this.router.navigate(['companies','edit', id])
   }
 
   /** Clic sur « Supprimer » : ouvre la confirmation (ne supprime pas encore). */
