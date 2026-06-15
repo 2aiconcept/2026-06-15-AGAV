@@ -1,0 +1,14 @@
+/* Config TypeScript dédiée aux tests e2e Playwright (contexte Node, hors `src/`). */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/e2e",
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "playwright.config.ts",
+    "e2e/**/*.ts"
+  ]
+}

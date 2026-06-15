@@ -1,0 +1,11 @@
+<h1 class="h3 mb-3">Modifier une entreprise</h1>
+
+@if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+}
+
+@if (initialValue(); as value) {
+  <app-form-company [initialValue]="value" submitLabel="Enregistrer" (save)="onSave($event)" />
+} @else if (!error()) {
+  <p aria-live="polite">Chargement…</p>
+}

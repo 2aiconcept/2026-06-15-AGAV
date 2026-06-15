@@ -1,0 +1,81 @@
+<form class="d-flex flex-column gap-3" (submit)="onSubmit($event)" novalidate>
+  <div>
+    <label for="nom" class="form-label">Nom</label>
+    <input
+      id="nom"
+      type="text"
+      class="form-control"
+      [formField]="companyForm.nom"
+      [attr.aria-invalid]="companyForm.nom().touched() && companyForm.nom().invalid()"
+      aria-describedby="nom-errors"
+    />
+    @if (companyForm.nom().touched() && companyForm.nom().invalid()) {
+      <div id="nom-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of companyForm.nom().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="secteur" class="form-label">Secteur</label>
+    <input
+      id="secteur"
+      type="text"
+      class="form-control"
+      [formField]="companyForm.secteur"
+      [attr.aria-invalid]="companyForm.secteur().touched() && companyForm.secteur().invalid()"
+      aria-describedby="secteur-errors"
+    />
+    @if (companyForm.secteur().touched() && companyForm.secteur().invalid()) {
+      <div id="secteur-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of companyForm.secteur().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="adresse" class="form-label">Adresse</label>
+    <input
+      id="adresse"
+      type="text"
+      class="form-control"
+      [formField]="companyForm.adresse"
+      [attr.aria-invalid]="companyForm.adresse().touched() && companyForm.adresse().invalid()"
+      aria-describedby="adresse-errors"
+    />
+    @if (companyForm.adresse().touched() && companyForm.adresse().invalid()) {
+      <div id="adresse-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of companyForm.adresse().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="telephone" class="form-label">Téléphone</label>
+    <input
+      id="telephone"
+      type="tel"
+      class="form-control"
+      [formField]="companyForm.telephone"
+      [attr.aria-invalid]="companyForm.telephone().touched() && companyForm.telephone().invalid()"
+      aria-describedby="telephone-errors"
+    />
+    @if (companyForm.telephone().touched() && companyForm.telephone().invalid()) {
+      <div id="telephone-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of companyForm.telephone().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <button type="submit" class="btn btn-primary" [disabled]="companyForm().invalid()">
+    {{ submitLabel() }}
+  </button>
+</form>

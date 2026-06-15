@@ -1,0 +1,72 @@
+<div class="card shadow-sm connect-card mx-auto">
+  <div class="card-body">
+    <h2 class="h4 card-title mb-4">
+      @if (mode() === 'signin') {
+        Connexion
+      } @else {
+        Inscription
+      }
+    </h2>
+
+    <form class="d-flex flex-column gap-3" (submit)="onSubmit($event)">
+      <div>
+        <label for="email" class="form-label">Adresse e-mail</label>
+        <input
+          id="email"
+          type="email"
+          class="form-control"
+          autocomplete="email"
+          aria-describedby="email-errors"
+          [formField]="connectForm.email"
+          [attr.aria-invalid] = "connectForm.email().touched() && connectForm.email().invalid()"
+          aria-describedby="email-errors"
+        />
+        @if (connectForm.email().touched() && connectForm.email().invalid()) {
+          <div id="email-errors" class="text-danger small mt-1" aria-live="polite">
+              @for (error of connectForm.email().errors(); track error.kind) {
+              <div>{{ error.message }}</div>
+                }
+          </div>
+        }
+      </div>
+
+      <div>
+        <label for="password" class="form-label">Mot de passe</label>
+        <input
+          id="password"
+          type="text"
+          class="form-control"
+          aria-describedby="password-errors"
+          [formField]="connectForm.password"
+          [attr.aria-invalid]="connectForm.password().touched() && connectForm.password().invalid()"
+          aria-describedby="password-errors"
+        />
+        @if (connectForm.password().touched() && connectForm.password().invalid()) {
+          <div id="password-errors" class="text-danger small mt-1" aria-live="polite">
+              @for (error of connectForm.password().errors(); track error.kind) {
+              <div>{{ error.message }}</div>
+                }
+          </div>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary" [disabled]="connectForm().invalid()">
+        se connecter
+      </button>
+    </form>
+
+    <p class="text-center mt-3 mb-0">
+        @if (mode() === 'signin') {
+        Pas encore de compte ?
+        <button type="button" class="btn btn-link p-0 align-baseline" (click)="toggleMode()">
+          Créer un compte
+        </button>
+      } @else {
+        Déjà un compte ?
+        <button type="button" class="btn btn-link p-0 align-baseline" (click)="toggleMode()">
+          Se connecter
+        </button>
+      }
+    </p>
+  </div>
+</div>
