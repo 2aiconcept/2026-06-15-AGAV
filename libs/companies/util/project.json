@@ -1,0 +1,20 @@
+{
+  "name": "companies-util",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/companies/util/src",
+  "prefix": "app",
+  "projectType": "library",
+  "tags": ["type:util", "scope:companies"],
+  "targets": {
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "coverage/libs/companies/util"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

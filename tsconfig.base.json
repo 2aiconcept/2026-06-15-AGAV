@@ -12,7 +12,14 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "preserve",
-    "paths": {},
+    "paths": {
+      "@mini-crm/companies/data-access": ["./libs/companies/data-access/src/index.ts"],
+      "@mini-crm/companies/ui": ["./libs/companies/ui/src/index.ts"],
+      "@mini-crm/companies/feature": ["./libs/companies/feature/src/index.ts"],
+      "@mini-crm/companies/util": ["./libs/companies/util/src/index.ts"],
+      "@mini-crm/shared/util": ["./libs/shared/util/src/index.ts"],
+      "@mini-crm/shared/ui": ["./libs/shared/ui/src/index.ts"]
+    },
     "rootDir": "."
   },
   "angularCompilerOptions": {

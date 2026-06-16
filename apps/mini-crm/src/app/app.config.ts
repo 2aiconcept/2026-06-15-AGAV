@@ -8,6 +8,8 @@ import {
 
 import { routes } from './app.routes';
 import { provideHttpClient } from '@angular/common/http';
+import { API_BASE_URL } from '@mini-crm/shared/util';
+import { environment } from '../environments/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -15,6 +17,8 @@ export const appConfig: ApplicationConfig = {
     // withComponentInputBinding : lie les paramètres de route (ex. :id) aux input() du composant.
     provideRouter(routes, withPreloading(PreloadAllModules), withComponentInputBinding()),
     provideHttpClient(),
+    // L'app (et elle seule) connaît l'environnement : elle fournit l'URL d'API aux libs data-access.
+    { provide: API_BASE_URL, useValue: environment.apiBaseUrl },
   ],
 };
 

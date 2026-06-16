@@ -1,0 +1,20 @@
+{
+  "name": "companies-ui",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/companies/ui/src",
+  "prefix": "app",
+  "projectType": "library",
+  "tags": ["type:ui", "scope:companies"],
+  "targets": {
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "coverage/libs/companies/ui"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

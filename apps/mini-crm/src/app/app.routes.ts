@@ -14,8 +14,7 @@ export const routes: Routes = [
   },
   {
     path: 'companies',
-    loadChildren: () =>
-      import('./feature-companies/companies.routes').then((m) => m.COMPANIES_ROUTES),
+    loadChildren: () => import('@mini-crm/companies/feature').then((m) => m.COMPANIES_ROUTES),
   },
   {
     path: 'contacts',

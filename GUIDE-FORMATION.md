@@ -10,13 +10,13 @@
 
 ## Sommaire des phases
 
-| Phase | Contenu                                          | Statut dans ce guide |
-| ----- | ------------------------------------------------ | -------------------- |
-| 0     | Mise en route (récupération + install)           | ✅ détaillée         |
-| 1     | Découverte de l'application                      | ✅ détaillée         |
-| 2     | Dette technique (appropriation du code)          | ✅ détaillée         |
-| 3     | Découpage des routes enfant par feature          | 🔜 à compléter       |
-| 4     | Migration Nx monorepo (libs feature par feature) | 🔜 à compléter       |
+| Phase | Contenu                                          | Statut dans ce guide        |
+| ----- | ------------------------------------------------ | --------------------------- |
+| 0     | Mise en route (récupération + install)           | ✅ détaillée                |
+| 1     | Découverte de l'application                      | ✅ détaillée                |
+| 2     | Dette technique (appropriation du code)          | ✅ détaillée — ⚠️ non soldée |
+| 3     | Découpage des routes enfant par feature          | ✅ réalisée                 |
+| 4     | Migration Nx monorepo (libs feature par feature) | 🚧 en cours                 |
 
 > **Contrainte transverse — SSR-safe dès le départ.** Même si le SSR n'est pas activé, tout le code
 > écrit pendant la formation doit être compatible SSR : aucun accès direct à `localStorage` /
@@ -88,12 +88,22 @@ Points à remarquer :
 Objectif : s'approprier le code en corrigeant la dette. **La liste ci-dessous est la proposition de
 départ, à valider/ajuster avec le formateur en début de séance.**
 
-- [ ] **`console.log` résiduels** — `shared/services/auth.ts` (`signin`) et
-      `feature-companies/pages/page-list-companies/page-list-companies.ts` (`ngOnInit`).
-- [ ] **Bug de message de validation** — dans `feature-connect/.../form-connect.ts`, le `required`
+- [ ] **`console.log` résiduels** — `shared/services/auth.ts` (`signin`, ligne 27) et
+      `feature-companies/pages/page-list-companies/page-list-companies.ts` (`ngOnInit`, ligne 51).
+- [x] **Bug de message de validation** — dans `feature-connect/.../form-connect.ts`, le `required`
       du mot de passe affiche « Le format de l'email est obligatoire » (copier-coller).
+      ✅ Corrigé (15/06) : message « Le mot de passe est obligatoire ».
 - [ ] **Commentaires morts / stubs vides** — en fin de `page-list-companies.ts`.
 - [ ] **Naming incohérent** — `CompanyService` (suffixe) vs `Auth` (sans). Choisir une convention.
+- [ ] **⚠️ Violation SSR (contrainte transverse)** — `shared/services/auth.ts` lit
+      `localStorage.getItem(...)` **à l'initialisation du champ** (ligne 15) : crash garanti en SSR.
+      À déplacer derrière `isPlatformBrowser` / `afterNextRender` (cf. règle « SSR Compatibility »).
+- [ ] **Code mort** — `shared/services/auth.ts` : signal de test `public test = signal('christophe')`
+      (ligne 21).
+
+> **⚠️ Phase 2 non soldée.** La migration Nx (Phase 4) a démarré alors que la dette ci-dessus n'est
+> pas entièrement corrigée. Recommandation : **fermer cette dette avant de poursuivre l'extraction
+> des libs** — on évite de migrer du code à corriger, et la violation SSR doit être traitée tôt.
 
 ### Vérification de fin de phase
 
@@ -104,13 +114,24 @@ ng test        # les tests unitaires passent (Vitest)
 
 ---
 
-## Phase 3 — Découpage des routes enfant _(à compléter)_
+## Phase 3 — Découpage des routes enfant ✅
 
 > Réalisé **avant** la migration Nx. Chaque feature expose un `feature-x.routes.ts`
 > (ex. `COMPANIES_ROUTES`) ; `app.routes.ts` utilise `loadChildren`. Inclut la création des routes
-> contacts/orders aujourd'hui absentes. Détail ajouté en formation.
+> contacts/orders aujourd'hui absentes.
 
-## Phase 4 — Migrer sur Nx
+**Réalisé (15-16/06) :**
+
+- `app.routes.ts` monte chaque feature en `loadChildren` :
+  `companies` → `COMPANIES_ROUTES`, `contacts` → `CONTACTS_ROUTES`, `orders` → `ORDERS_ROUTES`,
+  plus `connect` et la route `**` (`NOT_FOUND_ROUTE`).
+- Routes enfant de chaque feature dans son propre `*.routes.ts`, avec `loadComponent` par page
+  (`list` / `add` / `edit/:id`) et redirection `'' → list`.
+- Routes **contacts** et **orders** créées (elles étaient absentes du starter).
+
+Chaque feature est désormais autonome (namespace d'URL propre), donc prête à devenir une lib Nx.
+
+## Phase 4 — Migrer sur Nx 🚧
 
 > Ajout de Nx au projet existant : `nx init` puis `nx add @nx/angular`. On extrait ensuite les libs
 > **feature par feature** en ligne de commande (`nx g @nx/angular:library … --tags=type:…,scope:…`),
@@ -119,4 +140,27 @@ ng test        # les tests unitaires passent (Vitest)
 > (`@nx/enforce-module-boundaries`, `depConstraints`) avec démo d'un import interdit. Point clé : une
 > lib ne peut pas importer `environment.ts` → on passe par un `InjectionToken` `API_BASE_URL` fourni
 > par l'app. Le découpage des routes enfant (Phase 3) rend chaque feature autonome, donc migrer une
-> feature ≈ déplacer un dossier + corriger l'import. Détail ajouté en formation.
+> feature ≈ déplacer un dossier + corriger l'import.
+
+**Réalisé (16/06) :**
+
+- `nx init` + `nx add @nx/angular` ; workspace Nx en place (`nx.json`).
+- L'app a été déplacée dans `apps/mini-crm/` (cible `serve` via `@angular/build:dev-server`).
+
+**Architecture des libs retenue (validée en séance) :**
+
+- Un **dossier par domaine** (`libs/companies/`, `libs/contacts/`, `libs/orders/`, `libs/shared/`),
+  contenant **une lib par couche présente** (pas de lib vide par anticipation) :
+  - `feature` — smart components (pages) + routes ;
+  - `ui` — dumb components (`input`/`output`, sans `inject`) + pipes/directives de présentation ;
+  - `data-access` — services, **models**, et plus tard le store ;
+  - `util` — pur & transverse (enums, helpers, `API_BASE_URL`), plutôt en `shared/util`.
+- Génération **toujours avec `--tags=type:…,scope:…`**, et **`--name` + `--importPath` explicites**
+  (`@mini-crm/<domaine>/<couche>`) — sinon Nx dérive des noms génériques (`data-access`, `ui`…) qui
+  entrent en collision entre domaines.
+
+**En cours :** extraction des libs de `companies` (`companies-data-access`, `companies-ui`,
+`companies-feature`).
+
+**Reste à faire :** déplacer le code dans les libs, vérifier `nx graph`, répliquer sur
+contacts/orders/shared, puis durcir `enforce-module-boundaries` + introduire `API_BASE_URL`.
