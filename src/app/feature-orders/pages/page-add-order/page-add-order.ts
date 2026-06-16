@@ -7,4 +7,4 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   styleUrl: './page-add-order.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PageAddOrder {}
+export default class PageAddOrder {}

@@ -7,4 +7,4 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   styleUrl: './page-add-contact.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PageAddContact {}
+export default class PageAddContact {}
