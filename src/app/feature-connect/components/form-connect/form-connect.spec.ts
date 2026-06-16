@@ -12,7 +12,11 @@ describe('FormConnect', () => {
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormConnect);
+    // Input requis : il DOIT être fourni avant la détection de changements,
+    // sinon `model()` est lu sans valeur → NG0950.
+    fixture.componentRef.setInput('model', { email: '', password: '' });
     component = fixture.componentInstance;
+    fixture.detectChanges();
     await fixture.whenStable();
   });
 

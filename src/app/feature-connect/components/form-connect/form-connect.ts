@@ -37,9 +37,9 @@ export class FormConnect {
 
   /** Signal form : valeur + validation déclarative. */
   protected readonly connectForm = form<Credentials>(this.modelForm, (path) => {
-    required(path.email, {message : "Le format de l'email est obligatoire"});
+    required(path.email, {message : "Le champs email est obligatoire"});
     email(path.email, {message: "Le format de l'adresse email est invalide"});
-    required(path.password, {message : "Le format de l'email est obligatoire"});
+    required(path.password, {message : "Le mot de passe est obligatoire"});
     minLength(path.password, PASSWORD_MIN_LENGTH, {message : `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`})
   })
 

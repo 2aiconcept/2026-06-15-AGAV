@@ -27,6 +27,6 @@ test.describe('Connexion', () => {
     await submit.click();
 
     // signin() mémorise l'utilisateur puis redirige vers la liste des entreprises.
-    await expect(page).toHaveURL(/\/list-companies$/);
+    await expect(page).toHaveURL(/\/companies\/list$/);
   });
 });

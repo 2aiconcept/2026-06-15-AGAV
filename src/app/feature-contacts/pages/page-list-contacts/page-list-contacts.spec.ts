@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { PageListContacts } from './page-list-contacts';
+import PageListContacts from './page-list-contacts';
 
 describe('PageListContacts', () => {
   let component: PageListContacts;

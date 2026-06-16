@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { PageEditContact } from './page-edit-contact';
+import PageEditContact from './page-edit-contact';
 
 describe('PageEditContact', () => {
   let component: PageEditContact;

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { PageEditOrder } from './page-edit-order';
+import PageEditOrder from './page-edit-order';
 
 describe('PageEditOrder', () => {
   let component: PageEditOrder;
