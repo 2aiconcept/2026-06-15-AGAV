@@ -10,13 +10,13 @@
 
 ## Sommaire des phases
 
-| Phase | Contenu | Statut dans ce guide |
-|------|---------|----------------------|
-| 0 | Mise en route (récupération + install) | ✅ détaillée |
-| 1 | Découverte de l'application | ✅ détaillée |
-| 2 | Dette technique (appropriation du code) | ✅ détaillée |
-| 3 | Découpage des routes enfant par feature | 🔜 à compléter |
-| 4 | Migration Nx monorepo (libs feature par feature) | 🔜 à compléter |
+| Phase | Contenu                                          | Statut dans ce guide |
+| ----- | ------------------------------------------------ | -------------------- |
+| 0     | Mise en route (récupération + install)           | ✅ détaillée         |
+| 1     | Découverte de l'application                      | ✅ détaillée         |
+| 2     | Dette technique (appropriation du code)          | ✅ détaillée         |
+| 3     | Découpage des routes enfant par feature          | 🔜 à compléter       |
+| 4     | Migration Nx monorepo (libs feature par feature) | 🔜 à compléter       |
 
 > **Contrainte transverse — SSR-safe dès le départ.** Même si le SSR n'est pas activé, tout le code
 > écrit pendant la formation doit être compatible SSR : aucun accès direct à `localStorage` /
@@ -104,7 +104,7 @@ ng test        # les tests unitaires passent (Vitest)
 
 ---
 
-## Phase 3 — Découpage des routes enfant *(à compléter)*
+## Phase 3 — Découpage des routes enfant _(à compléter)_
 
 > Réalisé **avant** la migration Nx. Chaque feature expose un `feature-x.routes.ts`
 > (ex. `COMPANIES_ROUTES`) ; `app.routes.ts` utilise `loadChildren`. Inclut la création des routes

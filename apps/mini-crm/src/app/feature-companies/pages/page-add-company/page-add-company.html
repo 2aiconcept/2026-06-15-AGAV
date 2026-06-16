@@ -1,0 +1,8 @@
+<h1 class="h3 mb-3">Ajouter une entreprise</h1>
+
+<!-- if signale error pour afficher un message d'erreur (celui api) -->
+@if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+}
+
+<app-form-company submitLabel="Ajouter" (save)="onSave($event)" />

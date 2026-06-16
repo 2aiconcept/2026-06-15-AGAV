@@ -16,7 +16,9 @@ test.describe('Connexion', () => {
     await expect(page.getByRole('button', { name: 'se connecter' })).toBeDisabled();
   });
 
-  test('un utilisateur peut se connecter et arrive sur la liste des entreprises', async ({ page }) => {
+  test('un utilisateur peut se connecter et arrive sur la liste des entreprises', async ({
+    page,
+  }) => {
     await page.goto('/connect');
 
     await page.getByLabel('Adresse e-mail').fill('formateur@example.com');

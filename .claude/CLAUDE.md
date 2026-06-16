@@ -1,4 +1,3 @@
-
 You are an expert in TypeScript, Angular, and scalable web application development. You write functional, maintainable, performant, and accessible code following Angular and TypeScript best practices.
 
 ## Project context
@@ -49,30 +48,36 @@ SSR-safe from day one**, whether SSR is on or not.
 - It MUST meet all WCAG 2.2 AA criteria.
 
 ### Semantic HTML first
+
 - Prefer native elements (`<button>`, `<a>`, `<nav>`, `<main>`, `<table>`, `<label>`)
   before reaching for ARIA. No ARIA is better than bad ARIA.
 - Use ARIA only to fill gaps native HTML cannot cover.
 
 ### Keyboard & focus
+
 - All interactive elements MUST be reachable and operable by keyboard, in a logical tab order.
 - No keyboard traps. Visible focus indicators on every focusable element.
 - On route changes, move focus to the new view (SPA focus management).
 - Trap focus in dialogs/modals (use Angular CDK `cdkTrapFocus`).
 
 ### Forms (Reactive)
+
 - Every control has an associated `<label for>`.
 - Error messages are linked via `aria-describedby` and announced.
 - Validation state exposed via `aria-invalid`.
 
 ### Dynamic content (signals / @if / @for)
+
 - Announce async/state changes with `aria-live` regions or the CDK `LiveAnnouncer`.
 
 ### Contrast & visuals
+
 - Text contrast ≥ 4.5:1 (≥ 3:1 for large text and UI components).
 - Never convey meaning by color alone.
 - Respect `prefers-reduced-motion`.
 
 ### Verification
+
 - Automated AXE pass + manual keyboard-only walkthrough + screen reader spot-check.
 
 ### Components
@@ -114,7 +119,7 @@ SSR-safe from day one**, whether SSR is on or not.
 - No magic numbers or strings — extract to named constants.
 - DRY: extract shared logic; don't copy-paste blocks.
 - No dead code, no commented-out code, no leftover `console.log`.
-- Comments explain *why*, not *what*; the code itself explains the *what*.
+- Comments explain _why_, not _what_; the code itself explains the _what_.
 - Prefer immutability (`readonly`, `const`); never mutate inputs.
 - Handle errors explicitly — no empty `catch`, no silent failures.
 - Enforce formatting/linting via Prettier + ESLint (angular-eslint).
