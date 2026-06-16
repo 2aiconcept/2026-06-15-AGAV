@@ -9,6 +9,7 @@
   },
   "sourceRoot": "apps/mini-crm/src",
   "prefix": "app",
+  "tags": ["type:app", "scope:app"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",

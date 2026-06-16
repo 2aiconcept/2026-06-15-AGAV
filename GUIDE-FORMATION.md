@@ -16,7 +16,12 @@
 | 1     | Découverte de l'application                      | ✅ détaillée                |
 | 2     | Dette technique (appropriation du code)          | ✅ détaillée — ⚠️ non soldée |
 | 3     | Découpage des routes enfant par feature          | ✅ réalisée                 |
-| 4     | Migration Nx monorepo (libs feature par feature) | 🚧 en cours                 |
+| 4     | Migration Nx monorepo (libs feature par feature) | ✅ réalisée                 |
+| 5     | Intégration de l'API JWT (data-access + auth)    | 🚧 à venir                  |
+| 6     | Tests (Vitest + Playwright)                      | 🚧 à venir                  |
+
+> **Annexe A** — référence complète de l'**API Mini-CRM JWT** (endpoints, entrées/sorties,
+> interfaces TypeScript à créer). À utiliser en Phase 5.
 
 > **Contrainte transverse — SSR-safe dès le départ.** Même si le SSR n'est pas activé, tout le code
 > écrit pendant la formation doit être compatible SSR : aucun accès direct à `localStorage` /
@@ -131,7 +136,7 @@ ng test        # les tests unitaires passent (Vitest)
 
 Chaque feature est désormais autonome (namespace d'URL propre), donc prête à devenir une lib Nx.
 
-## Phase 4 — Migrer sur Nx 🚧
+## Phase 4 — Migrer sur Nx ✅
 
 > Ajout de Nx au projet existant : `nx init` puis `nx add @nx/angular`. On extrait ensuite les libs
 > **feature par feature** en ligne de commande (`nx g @nx/angular:library … --tags=type:…,scope:…`),
@@ -159,8 +164,254 @@ Chaque feature est désormais autonome (namespace d'URL propre), donc prête à 
   (`@mini-crm/<domaine>/<couche>`) — sinon Nx dérive des noms génériques (`data-access`, `ui`…) qui
   entrent en collision entre domaines.
 
-**En cours :** extraction des libs de `companies` (`companies-data-access`, `companies-ui`,
-`companies-feature`).
+**Extraction des libs — terminée (16/06).** Toutes les features et le code partagé sont sortis de
+l'app ; `apps/mini-crm/` ne contient plus que le **shell** (`app.ts/html/css`, `app.routes.ts`,
+`app.config.ts`). Arborescence finale `libs/` :
 
-**Reste à faire :** déplacer le code dans les libs, vérifier `nx graph`, répliquer sur
-contacts/orders/shared, puis durcir `enforce-module-boundaries` + introduire `API_BASE_URL`.
+| Domaine (`scope`) | Libs (`type`) | Contenu déplacé |
+| --- | --- | --- |
+| `companies` | `data-access`, `ui`, `util`, `feature` | `CompanyService` + modèle ; `form-company`/`table-company` ; pages + `COMPANIES_ROUTES` |
+| `contacts` | `data-access`, `ui`, `util`, `feature` | `form-contact` (ui) ; pages + `CONTACTS_ROUTES` ; `data-access`/`util` = **coquilles vides** (squelette) |
+| `orders` | `data-access`, `ui`, `util`, `feature` | `form-order` (ui) ; pages + `ORDERS_ROUTES` ; `data-access`/`util` = **coquilles vides** |
+| `connect` | `ui`, `feature` | `form-connect` (ui) ; `page-connect` (feature) |
+| `not-found` | `feature` | `page-not-found` + `NOT_FOUND_ROUTE` |
+| `shared` | `data-access`, `ui`, `util` | `Auth` (data-access) ; `Nav` + `Header` (ui) ; `Credentials` + `API_BASE_URL` + `ConfirmDialog` (util/ui) |
+
+> **Note d'architecture.** Le principe « pas de lib vide par anticipation » a été assoupli pour
+> `contacts`/`orders` : on a généré les **4 couches** comme pour `companies` afin d'avoir une structure
+> homogène, avec `data-access`/`util` en **coquilles** (`export {}` documenté) prêtes à accueillir les
+> services/modèles de l'API (cf. Phase 5 et Annexe A).
+
+**Décisions de découplage notables :**
+
+- **`Header` rendu présentationnel** : il injectait `Auth` (interdit en `ui` par la règle
+  `ui → ui | util`). Converti en composant pur — `input()` `isAuthenticated`/`userEmail` + `output()`
+  `logout` — câblé par le shell `App` (seul à connaître `Auth`). `shared-ui` n'a ainsi **aucune**
+  dépendance `data-access`.
+- **Imports morts retirés** : `form-connect` importait `Auth`/`Router` (inutilisés) → supprimés,
+  sinon `connect-ui` aurait dépendu de `data-access`.
+- **`API_BASE_URL`** (`InjectionToken`, `shared/util`) : l'app fournit la valeur depuis
+  `environment.ts` (`app.config.ts`) ; les services `data-access` la lisent via `inject(API_BASE_URL)`
+  — **aucune lib n'importe `environment.ts`**.
+
+**Durcissement des frontières de module — fait (16/06).** Dans `eslint.config.mjs`, le
+`depConstraints` permissif (`'*' → ['*']`) a été remplacé par la matrice complète, et l'app taguée
+`type:app, scope:app` :
+
+- **Par `type`** : `app → feature|ui|data-access|util` · `feature → ui|data-access|util`
+  · `ui → ui|util` · `data-access → data-access|util` · `util → util`. _(Une feature ne dépend
+  jamais d'une autre feature ; `util` est une feuille.)_
+- **Par `scope`** : `app → tous` · chaque domaine `→ son scope + shared` · `shared → shared`.
+- Les deux dimensions s'appliquent en **ET**.
+
+**Vérifications :** `nx run-many -t lint` (18 projets, 0 erreur), `nx build mini-crm` OK
+(chunks lazy par page présents), `nx graph` acyclique. **Démo « la règle mord »** : un import
+volontairement interdit (`shared/ui → companies/feature`) fait échouer le lint via
+`@nx/enforce-module-boundaries`.
+
+**Commande de (re)génération d'une lib** (référence) :
+
+```bash
+npx nx g @nx/angular:library libs/<domaine>/<couche> \
+  --name=<domaine>-<couche> \
+  --importPath=@mini-crm/<domaine>/<couche> \
+  --tags=type:<couche>,scope:<domaine> --no-interactive
+```
+
+> ⚠️ Après génération, penser à : aligner le `prefix` sur `app` (project.json + eslint.config.mjs,
+> Nx met `lib` par défaut), supprimer le composant scaffold par défaut, et brancher le `index.ts`
+> (barrel) sur le vrai contenu.
+
+---
+
+## Phase 5 — Intégration de l'API JWT 🚧
+
+> L'API simulée laisse place à la **vraie API REST protégée par JWT** (voir **Annexe A** pour le
+> détail des endpoints et des interfaces). Objectif : remplir les libs `data-access`/`util` des
+> domaines et transformer `Auth` (aujourd'hui simulé) en authentification JWT réelle.
+
+**Étapes prévues :**
+
+1. **Pointer `apiBaseUrl`** vers l'API JWT dans `environment.ts` / `environment.prod.ts`
+   (`API_BASE_URL` est déjà fourni par l'app — rien à changer côté libs).
+2. **Créer les interfaces** (`util`) par domaine — pattern `Entity` + `EntityInput`
+   (`= Omit<Entity, 'id'>`), cf. Annexe A. ⚠️ **Mapping** : l'entité API `Opportunité` correspond à
+   la feature **`orders`**, et `Entreprise` à **`companies`**.
+3. **Services `data-access`** (signals + `HttpClient` + `inject(API_BASE_URL)`) sur le modèle de
+   `CompanyService`, dans `contacts-data-access` et `orders-data-access`.
+4. **Auth JWT** : `Auth` (`shared/data-access`) appelle `POST /api/auth/login` / `register`, stocke
+   le `token` (⚠️ **SSR-safe** : `localStorage` derrière `isPlatformBrowser`/`afterNextRender`).
+5. **Interceptor** `Authorization: Bearer <token>` (`shared/data-access` ou `util`) + gestion des
+   `401/403` (déconnexion/redirection vers `/connect`).
+
+---
+
+## Annexe A — API Mini-CRM JWT (référence)
+
+> **Mini CRM API JWT v2.0.0** — analysée depuis le Swagger
+> `https://mini-crm-api-jwt-production.up.railway.app/api-docs/`.
+
+### Infos générales
+
+- **Base URL** : `https://mini-crm-api-jwt-production.up.railway.app` (ou `http://localhost:8080`).
+- **Auth** : JWT Bearer. `POST /api/auth/login` → `token`, puis header
+  `Authorization: Bearer <token>` sur tous les endpoints marqués 🔒.
+- **Comptes démo** : `user@test.com` / `password123` — `admin@test.com` / `admin123`.
+- **Données en mémoire** : reset auto chaque dimanche 08h00 (Europe/Paris), ou
+  `POST /api/admin/reset-formation`.
+- ⚠️ **Mapping domaine** : `Opportunité` (API) ↔ feature **`orders`** ; `Entreprise` (API) ↔ feature
+  **`companies`** (le modèle `Company` existant correspond déjà à `Entreprise`).
+
+### Endpoints (16)
+
+**🔓 Authentification — `/api/auth`**
+
+| Méthode | Path | Auth | Entrée | Sortie |
+| --- | --- | --- | --- | --- |
+| POST | `/api/auth/register` | non | `RegisterInput` | `201 AuthResponse` · 400 |
+| POST | `/api/auth/login` | non | `LoginInput` | `200 AuthResponse` · 400/401 |
+| GET | `/api/auth/profile` | 🔒 | — | `200 UserProfile` · 401/403 |
+
+**🔒 Contacts — `/api/contacts`** (feature `contacts`)
+
+| Méthode | Path | Entrée | Sortie |
+| --- | --- | --- | --- |
+| GET | `/api/contacts` | — | `200 Contact[]` |
+| POST | `/api/contacts` | `ContactInput` | `201 Contact` · 400 |
+| GET | `/api/contacts/{id}` | — | `200 Contact` · 404 `Erreur` |
+| PUT | `/api/contacts/{id}` | `ContactInput` (partiel) | `200 Contact` · 404 |
+| DELETE | `/api/contacts/{id}` | — | `200` · 404 |
+| GET | `/api/contacts/{id}/opportunites` | — | `200 Opportunite[]` (relation 1-N) |
+
+**🔒 Entreprises — `/api/entreprises`** (feature `companies`)
+
+| Méthode | Path | Entrée | Sortie |
+| --- | --- | --- | --- |
+| GET | `/api/entreprises` | — | `200 Entreprise[]` |
+| POST | `/api/entreprises` | `EntrepriseInput` | `201 Entreprise` · 400 |
+| GET | `/api/entreprises/{id}` | — | `200 Entreprise` · 404 |
+| PUT | `/api/entreprises/{id}` | `EntrepriseInput` | `200 Entreprise` · 404 |
+| DELETE | `/api/entreprises/{id}` | — | `200` · 404 |
+| GET | `/api/entreprises/{id}/contacts` | — | `200 Contact[]` (relation 1-N) |
+
+**🔒 Opportunités — `/api/opportunites`** (feature `orders`)
+
+| Méthode | Path | Entrée | Sortie |
+| --- | --- | --- | --- |
+| GET | `/api/opportunites` | — | `200 Opportunite[]` |
+| POST | `/api/opportunites` | `OpportuniteInput` | `201 Opportunite` · 400 |
+| GET | `/api/opportunites/{id}` | — | `200 Opportunite` · 404 |
+| PUT | `/api/opportunites/{id}` | `OpportuniteInput` (partiel) | `200 Opportunite` · 404 |
+| DELETE | `/api/opportunites/{id}` | — | `200` · 404 |
+
+**Dashboard & Admin**
+
+| Méthode | Path | Auth | Sortie |
+| --- | --- | --- | --- |
+| GET | `/` | 🔓 | Infos API + liste des endpoints |
+| GET | `/api/health` | 🔓 | `status`, `uptime`, compteurs, dernière activité |
+| GET | `/api/dashboard/stats` | 🔒 | `{ contacts, entreprises, opportunites, montant_total }` |
+| GET | `/api/admin/stats` | 🔓 | stats détaillées (par secteur, par statut, prochain reset) |
+| POST | `/api/admin/reset-formation` | 🔓 | `{ message }` |
+
+### Interfaces TypeScript à créer
+
+Pattern commun : **`Entity` (avec `id`) + `EntityInput` (`= Omit<Entity, 'id'>`)** — la convention
+`Company`/`CompanyPayload` existante. Champs requis selon le Swagger : `nom` (Entreprise),
+`titre` (Opportunité), `nom`/`prenom`/`email` (Contact) ; les `*_id` sont `number | null`.
+
+**`@mini-crm/companies/util`** _(la `Company` existante = `Entreprise` — à aligner/renommer)_
+
+```ts
+export interface Entreprise {
+  id: number;
+  nom: string; // requis
+  secteur?: string;
+  adresse?: string;
+  telephone?: string;
+}
+export type EntrepriseInput = Omit<Entreprise, 'id'>;
+```
+
+**`@mini-crm/contacts/util`**
+
+```ts
+export interface Contact {
+  id: number;
+  nom: string; // requis
+  prenom: string; // requis
+  email: string; // requis
+  telephone?: string;
+  entreprise_id?: number | null;
+}
+export type ContactInput = Omit<Contact, 'id'>;
+```
+
+**`@mini-crm/orders/util`** _(opportunités)_
+
+```ts
+export type StatutOpportunite = 'Prospect' | 'En cours' | 'Gagne' | 'Perdu';
+
+export interface Opportunite {
+  id: number;
+  titre: string; // requis
+  description?: string;
+  montant?: number;
+  statut?: StatutOpportunite;
+  contact_id?: number | null;
+  entreprise_id?: number | null;
+}
+export type OpportuniteInput = Omit<Opportunite, 'id'>;
+```
+
+**`@mini-crm/shared/util`** _(auth — à côté de `Credentials` ; `LoginInput` ≈ `Credentials`)_
+
+```ts
+export interface LoginInput {
+  email: string;
+  password: string;
+} // = Credentials
+export interface RegisterInput {
+  email: string;
+  password: string;
+  nom: string;
+  prenom: string;
+}
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  nom: string;
+  prenom: string;
+  role: string;
+}
+export interface AuthResponse {
+  token: string;
+  user: UserProfile;
+}
+
+export interface ApiError {
+  error: string;
+} // schéma "Erreur"
+```
+
+**Optionnel — dashboard (pas de feature dédiée aujourd'hui)**
+
+```ts
+export interface DashboardStats {
+  contacts: number;
+  entreprises: number;
+  opportunites: number;
+  montant_total: number;
+}
+```
+
+### Points d'attention
+
+- **Requis vs optionnel** : les `required()` actuels de `form-company` (secteur/adresse/téléphone)
+  sont **plus stricts que l'API** (seul `nom` est requis) — à ajuster.
+- **PUT partiel** (contacts & opportunités) : typer le body de `update()` en `Partial<EntityInput>`.
+- **snake_case API** : `entreprise_id` / `contact_id` / `montant_total` — garder tel quel (simple)
+  ou mapper en camelCase via un adaptateur dans le service.
+- **JWT + SSR** : stockage du token derrière `isPlatformBrowser` / `afterNextRender` (contrainte
+  transverse SSR-safe).
