@@ -505,10 +505,189 @@ async onSave(payload: CompanyPayload): Promise<void> {
     `entreprise_id`), ou collection > quelques milliers d'items mutés. Aucun critère rempli chez nous
     pour l'instant.
 
-**Progression pédagogique V1 → V2 :** d'abord la V1 (spreads explicites à la main), **puis** rebascule
-en V2 avec `withEntities` comme module « optimisation/standardisation ». C'est un **avant/après**
-parlant : le `filter(c => c.id !== id)` écrit à la main en V1 devient `removeEntity(id)` en V2 — ils
-**mesurent** ce que l'abstraction leur fait gagner au lieu de subir une magie.
+**Progression pédagogique V1 → V2 → V3 :** d'abord la V1 (spreads explicites à la main), **puis**
+`withEntities` (V2), **puis** la factorisation générique (V3). À chaque étape, un **avant/après**
+parlant — ils **mesurent** ce que l'abstraction fait gagner, au lieu de subir une magie.
+
+### V2 — `withEntities` (collection normalisée)
+
+> Même feature (companies), on **rebascule** le tableau brut en collection normalisée. **Rien à
+> installer** : `withEntities` vit dans `@ngrx/signals/entities` (sous-chemin du package déjà présent).
+
+Dans le store : on ajoute `withEntities<Company>()`, on **retire** `companies: Company[]` de
+`withState`, et chaque méthode passe d'un `patchState` « à la main » à un **updater d'entités** :
+
+```ts
+import {
+  addEntity, removeEntity, setAllEntities, updateEntity, withEntities,
+} from '@ngrx/signals/entities';
+
+export const CompaniesStore = signalStore(
+  { providedIn: 'root' },
+  withState<{ isLoading: boolean; error: string | null }>({ isLoading: false, error: null }),
+  withEntities<Company>(), // la collection vit ici → signal `entities` (+ entityMap, ids)
+  withMethods((store, http = inject(HttpClient), apiUrl = `${inject(API_BASE_URL)}/entreprises`) => ({
+    async load() {
+      patchState(store, { isLoading: true, error: null });
+      try {
+        const companies = await firstValueFrom(http.get<Company[]>(apiUrl));
+        patchState(store, setAllEntities(companies), { isLoading: false }); // ← au lieu de { companies }
+      } catch {
+        patchState(store, { error: 'Impossible de charger les entreprises.', isLoading: false });
+      }
+    },
+    async loadOne(id: number): Promise<Company | null> {
+      patchState(store, { error: null });
+      try {
+        return await firstValueFrom(http.get<Company>(`${apiUrl}/${id}`));
+      } catch {
+        patchState(store, { error: "Impossible de charger l'entreprise." });
+        return null;
+      }
+    },
+    async add(payload: CompanyPayload) {
+      patchState(store, { error: null });
+      try {
+        const created = await firstValueFrom(http.post<Company>(apiUrl, payload));
+        patchState(store, addEntity(created)); // ← au lieu de { companies: [...companies, created] }
+      } catch {
+        patchState(store, { error: "Impossible de créer l'entreprise." });
+      }
+    },
+    async update(id: number, payload: CompanyPayload) {
+      patchState(store, { error: null });
+      try {
+        const updated = await firstValueFrom(http.put<Company>(`${apiUrl}/${id}`, payload));
+        patchState(store, updateEntity({ id, changes: updated })); // ← au lieu de companies.map(...)
+      } catch {
+        patchState(store, { error: "Impossible de modifier l'entreprise." });
+      }
+    },
+    async remove(id: number) {
+      patchState(store, { error: null });
+      try {
+        await firstValueFrom(http.delete<void>(`${apiUrl}/${id}`));
+        patchState(store, removeEntity(id)); // ← au lieu de companies.filter(...)
+      } catch {
+        patchState(store, { error: "Impossible de supprimer l'entreprise." });
+      }
+    },
+  })),
+);
+```
+
+Côté page liste, **un seul changement** — on lit la collection via `entities` :
+
+```ts
+// protected readonly companies = this.store.companies;   // V1 (tableau de withState)
+protected readonly companies = this.store.entities;        // V2 (signal Company[] de withEntities)
+```
+
+Le nom `companies` est conservé → **template et reste du composant inchangés**. `add`/`update`/`remove`
+et leurs pages **ne changent pas** (signatures identiques) : `withEntities` ne touche que ce qui
+**lit ou écrit la collection**.
+
+**Avant/après marquant** : `state.companies.filter(c => c.id !== id)` (V1) → **`removeEntity(id)`** (V2).
+
+### V3 — Factoriser : `with-crud.ts` générique (3 lignes par store)
+
+> Constat : `companies`, `contacts`, `orders` auront le **même** store, à l'entité et à l'URL près. On
+> factorise dans **une feature générique**, et chaque store tient en 3 lignes.
+
+`libs/shared/data-access/src/lib/with-crud.ts` (exporté par le barrel) :
+
+```ts
+export type WithId = { id: number };
+
+export function withCrud<T extends WithId>(resource: string) {
+  return signalStoreFeature(
+    withEntities<T>(),
+    withState<{ isLoading: boolean; error: string | null }>({ isLoading: false, error: null }),
+    withMethods((store, http = inject(HttpClient), url = `${inject(API_BASE_URL)}/${resource}`) => ({
+      async load() {
+        patchState(store, { isLoading: true, error: null });
+        try {
+          patchState(store, setAllEntities(await firstValueFrom(http.get<T[]>(url))), { isLoading: false });
+        } catch {
+          patchState(store, { error: 'Impossible de charger les données.', isLoading: false });
+        }
+      },
+      async loadOne(id: number): Promise<T | null> {
+        patchState(store, { error: null });
+        try {
+          return await firstValueFrom(http.get<T>(`${url}/${id}`));
+        } catch {
+          patchState(store, { error: 'Impossible de charger l’élément.' });
+          return null;
+        }
+      },
+      async add(payload: Omit<T, 'id'>) {
+        patchState(store, { error: null });
+        try {
+          patchState(store, addEntity(await firstValueFrom(http.post<T>(url, payload))));
+        } catch {
+          patchState(store, { error: 'Impossible de créer l’élément.' });
+        }
+      },
+      async update(id: number, payload: Omit<T, 'id'>) {
+        patchState(store, { error: null });
+        try {
+          const updated = await firstValueFrom(http.put<T>(`${url}/${id}`, payload));
+          patchState(store, updateEntity({ id, changes: updated }));
+        } catch {
+          patchState(store, { error: 'Impossible de modifier l’élément.' });
+        }
+      },
+      async remove(id: number) {
+        patchState(store, { error: null });
+        try {
+          await firstValueFrom(http.delete<void>(`${url}/${id}`));
+          patchState(store, removeEntity(id));
+        } catch {
+          patchState(store, { error: 'Impossible de supprimer l’élément.' });
+        }
+      },
+    })),
+  );
+}
+```
+
+Chaque store du domaine se réduit alors à **trois lignes**, et l'API exposée reste **identique**
+(`entities`, `isLoading`, `error` + `load/loadOne/add/update/remove`) → **les pages ne changent pas** :
+
+```ts
+export const CompaniesStore = signalStore({ providedIn: 'root' }, withCrud<Company>('entreprises'));
+export const ContactsStore  = signalStore({ providedIn: 'root' }, withCrud<Contact>('contacts'));
+export const OrdersStore    = signalStore({ providedIn: 'root' }, withCrud<Opportunite>('opportunites'));
+```
+
+- **`signalStoreFeature(...)`** = la façon NgRx de **packager** un groupe de features réutilisable
+  (`withEntities` + `withState` + `withMethods`) sous une seule fonction.
+- **`<T extends WithId>`** rend la logique générique ; **`resource`** = le segment d'URL collé à
+  `API_BASE_URL`.
+- **Quand l'introduire** : quand on se surprend à réécrire le **2ᵉ/3ᵉ** store identique. Pas avant
+  (abstraction prématurée).
+
+> **Récap** : **V1** store explicite (mécanique visible) → **V2** `withEntities` (updaters, moins de
+> boilerplate) → **V3** `withCrud<T>` (3 lignes par store). On monte en abstraction **seulement quand
+> la duplication le justifie** — et chaque palier reste un avant/après démontrable.
+
+**Le fichier `companies.store.ts` final** se résume alors à ceci (tout le CRUD vit dans la feature
+générique) :
+
+```ts
+import { signalStore } from '@ngrx/signals';
+import { withCrud } from '@mini-crm/shared/data-access';
+import { Company } from '@mini-crm/companies/util';
+
+export const CompaniesStore = signalStore({ providedIn: 'root' }, withCrud<Company>('entreprises'));
+```
+
+> **Astuce pédagogique (pour la session).** Garde les versions **V1** (sans `withEntities`) et **V2**
+> (avec `withEntities`) en **blocs commentés** dans le fichier, clairement étiquetés — ainsi tu peux
+> dérouler l'avant/après au tableau et y revenir. **En code de production, on les supprime** :
+> `with-crud.ts` devient la seule source de vérité du CRUD. C'est un choix **pédagogique**, pas un
+> patron à laisser en l'état.
 
 ---
 

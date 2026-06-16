@@ -16,7 +16,10 @@ export default class PageListOrders implements OnInit {
   private readonly router = inject(Router);
 
   // État lu directement depuis le store (signals).
-  protected readonly orders = this.store.orders;
+  // --- Version withState (tableau `orders`) ---
+  // protected readonly orders = this.store.orders;
+  // --- Version withEntities (collection normalisée → signal `entities`) ---
+  protected readonly orders = this.store.entities;
   protected readonly error = this.store.error;
 
   // Id de la commande dont la suppression est en attente de confirmation.
