@@ -2,13 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  signal,
-  ViewEncapsulation,
 } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { Nav } from './shared/components/nav/nav';
-import { Header } from './shared/components/header/header';
-import { Auth } from './shared/services/auth';
+import { Header, Nav } from '@mini-crm/shared/ui';
+import { Auth } from '@mini-crm/shared/data-access';
 
 @Component({
   selector: 'app-root',

@@ -1,0 +1,20 @@
+{
+  "name": "not-found-feature",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/not-found/feature/src",
+  "prefix": "app",
+  "projectType": "library",
+  "tags": ["type:feature", "scope:not-found"],
+  "targets": {
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "coverage/libs/not-found/feature"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

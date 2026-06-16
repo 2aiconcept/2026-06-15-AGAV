@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { PageConnect } from './feature-connect/pages/page-connect/page-connect';
-import { NOT_FOUND_ROUTE } from './feature-not-found/not-found.routes';
+import { PageConnect } from '@mini-crm/connect/feature';
+import { NOT_FOUND_ROUTE } from '@mini-crm/not-found/feature';
 
 export const routes: Routes = [
   {
@@ -18,11 +18,11 @@ export const routes: Routes = [
   },
   {
     path: 'contacts',
-    loadChildren: () => import('./feature-contacts/contacts.routes').then((m) => m.CONTACTS_ROUTES),
+    loadChildren: () => import('@mini-crm/contacts/feature').then((m) => m.CONTACTS_ROUTES),
   },
   {
     path: 'orders',
-    loadChildren: () => import('./feature-orders/orders.routes').then((m) => m.ORDERS_ROUTES),
+    loadChildren: () => import('@mini-crm/orders/feature').then((m) => m.ORDERS_ROUTES),
   },
   NOT_FOUND_ROUTE,
 ];
