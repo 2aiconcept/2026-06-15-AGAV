@@ -81,10 +81,4 @@ export default class PageListCompanies implements OnInit {
   protected cancelDelete(): void {
     this.pendingDeleteId.set(null);
   }
-
-  // METHOD TO OPEN DIALOG BOX
-
-  // MMETHOD TO DELELE AFTER CONFIRM DELETE IN DIALOG BOX
-
-  // METHOD TO CANCEL A DELETE AFTER DIALOG BOX
 }

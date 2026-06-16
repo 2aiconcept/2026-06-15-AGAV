@@ -1,1 +1,43 @@
-<p>form-order works!</p>
+<form class="d-flex flex-column gap-3" (submit)="onSubmit($event)" novalidate>
+  <div>
+    <label for="titre" class="form-label">Titre</label>
+    <input
+      id="titre"
+      type="text"
+      class="form-control"
+      [formField]="orderForm.titre"
+      [attr.aria-invalid]="orderForm.titre().touched() && orderForm.titre().invalid()"
+      aria-describedby="titre-errors"
+    />
+    @if (orderForm.titre().touched() && orderForm.titre().invalid()) {
+      <div id="titre-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of orderForm.titre().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="description" class="form-label">Description</label>
+    <input id="description" type="text" class="form-control" [formField]="orderForm.description" />
+  </div>
+
+  <div>
+    <label for="montant" class="form-label">Montant (€)</label>
+    <input id="montant" type="number" class="form-control" [formField]="orderForm.montant" />
+  </div>
+
+  <div>
+    <label for="statut" class="form-label">Statut</label>
+    <select id="statut" class="form-select" [formField]="orderForm.statut">
+      @for (statut of statuts; track statut) {
+        <option [value]="statut">{{ statut }}</option>
+      }
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary" [disabled]="orderForm().invalid()">
+    {{ submitLabel() }}
+  </button>
+</form>

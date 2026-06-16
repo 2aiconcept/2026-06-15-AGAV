@@ -1,0 +1,46 @@
+<table class="table table-striped align-middle">
+  <caption class="visually-hidden">
+    Liste des commandes
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Titre</th>
+      <th scope="col">Description</th>
+      <th scope="col" class="text-end">Montant</th>
+      <th scope="col">Statut</th>
+      <th scope="col" class="text-end">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (order of orders(); track order.id) {
+      <tr>
+        <td>{{ order.titre }}</td>
+        <td>{{ order.description }}</td>
+        <td class="text-end">{{ order.montant }} €</td>
+        <td>{{ order.statut }}</td>
+        <td class="text-end">
+          <div class="btn-group" role="group">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary"
+              (click)="editOrderFn(order.id)"
+            >
+              Éditer
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              (click)="deleteOrderFn(order.id)"
+            >
+              Supprimer
+            </button>
+          </div>
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="5" class="text-center text-muted">Aucune commande à afficher.</td>
+      </tr>
+    }
+  </tbody>
+</table>

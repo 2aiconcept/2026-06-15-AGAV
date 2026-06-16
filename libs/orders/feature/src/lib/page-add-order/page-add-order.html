@@ -1,1 +1,7 @@
-<p>page-add-order works!</p>
+<h1 class="h3 mb-3">Ajouter une commande</h1>
+
+@if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+}
+
+<app-form-order submitLabel="Ajouter" (save)="onSave($event)" />

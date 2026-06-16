@@ -1,1 +1,24 @@
-<p>page-list-orders works!</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Commandes</h1>
+  <button type="button" class="btn btn-primary" (click)="onAddOrder()">Ajouter une commande</button>
+</div>
+
+@if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+}
+
+<app-table-order
+  [orders]="orders()"
+  (editOrder)="editItem($event)"
+  (deleteOrder)="onDeleteRequest($event)"
+/>
+
+<app-confirm-dialog
+  [open]="pendingDeleteId() !== null"
+  title="Supprimer la commande"
+  [message]="confirmMessage()"
+  confirmLabel="Supprimer"
+  cancelLabel="Annuler"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

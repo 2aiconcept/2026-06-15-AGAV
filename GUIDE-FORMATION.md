@@ -261,6 +261,12 @@ npx nx g @nx/angular:library libs/<domaine>/<couche> \
   `Authorization: Bearer <token>` quand un token existe (les requêtes anonymes login/register passent
   inchangées), `req.clone({ setHeaders })` (immuabilité). Enregistré dans le shell via
   `provideHttpClient(withInterceptors([authInterceptor]))` ([app.config.ts](apps/mini-crm/src/app/app.config.ts)).
+- **Garde de route fonctionnelle** ([auth-guard.ts](libs/shared/data-access/src/lib/auth-guard.ts)) :
+  `authGuard: CanActivateFn` lit `Auth.isAuthenticated()` ; si non connecté, renvoie un `UrlTree` vers
+  `/connect` avec `returnUrl` (URL demandée mémorisée pour y revenir). Appliquée via
+  `canActivate: [authGuard]` sur `companies` / `contacts` / `orders` dans
+  [app.routes.ts](apps/mini-crm/src/app/app.routes.ts) (`connect` et `**` restent publiques). Générée
+  avec `npx nx g @schematics/angular:guard auth --project=shared-data-access --implements=CanActivate --functional`.
 
 **Reste à faire :**
 
@@ -274,8 +280,235 @@ npx nx g @nx/angular:library libs/<domaine>/<couche> \
    ⚠️ **Mapping** : `Opportunité` (API) ↔ feature **`orders`**, `Entreprise` ↔ **`companies`**.
 4. **Services `data-access`** (signals + `HttpClient` + `inject(API_BASE_URL)`) sur le modèle de
    `CompanyService`, dans `contacts-data-access` et `orders-data-access`.
-5. **Garde de route** (`CanActivate`/functional guard) sur les features protégées → redirection
-   `/connect` si non authentifié.
+5. **Exploiter le `returnUrl`** : `page-connect` devrait lire `?returnUrl` après connexion pour y
+   rediriger (aujourd'hui le `signin` renvoie toujours vers `/companies/list` en dur). Le guard pose
+   déjà le `returnUrl`.
+
+### Gestion d'état : NgRx SignalStore (companies) 🚧
+
+> **Décision** : gérer l'état des features avec **NgRx SignalStore**, en commençant par `companies`
+> (le store remplacera à terme le `CompanyService` hybride actuel). Approche **« simple d'abord »**,
+> adaptée à un public pas à l'aise sur Angular : on n'ajoute une feature du store que **quand le
+> besoin existe**, pas par réflexe.
+
+**Installation** (NgRx suit la version majeure d'Angular → Angular 21 = NgRx 21). En monorepo Nx, on
+utilise la commande **Nx-native** (pas `ng add`, qui est l'outil Angular CLI ; pas `npm install` non
+plus) — elle aligne automatiquement la version sur le workspace :
+
+```bash
+npx nx add @ngrx/signals
+```
+
+> ✅ Installé : `@ngrx/signals@^21.1.1` (dans `dependencies`).
+> Un seul package : `@ngrx/signals` contient `signalStore`, `withState`, `withMethods`, `patchState`,
+> `withComputed`… et `withEntities` (via le sous-chemin `@ngrx/signals/entities`). **Pas** besoin de
+> `@ngrx/store` / `@ngrx/effects` (ça, c'est le Global Store classique), ni de `@ngrx/operators`
+> (`tapResponse`) tant qu'on ne passe pas à `rxMethod`.
+
+**Emplacement** : un seul `companies.store.ts` dans **`companies/data-access`** (état + accès données
+→ c'est sa couche), exporté par le barrel.
+
+**Fourniture (provide)** : un SignalStore se fournit lui-même — **rien à mettre dans `app.config.ts`**.
+
+- `signalStore({ providedIn: 'root' }, …)` → **singleton global**, on `inject()` et c'est tout (choix
+  retenu pour démarrer).
+- Variante scopée à la feature : sans `providedIn`, on met `providers: [CompaniesStore]` sur la
+  **route** de la feature (instance créée/détruite avec la feature). Pour plus tard.
+
+**V1 — le plus simple (à faire en premier) :**
+
+- `withState({ companies, isLoading, error })` — l'état **brut** (tableau `Company[]`).
+- `withMethods(…)` — `load` / `add` / `update` / `remove`, chacune fait son appel HTTP et un
+  **`patchState`**. Async via méthodes **`async` + `firstValueFrom`** (HttpClient renvoie des
+  Observables) — **pas `rxMethod`** (réservé au réactif avancé : debounce, switchMap…).
+- Mental model en 3 concepts seulement : **état → méthode → `patchState`**. Les stagiaires voient
+  l'état muter « à la main » (spreads `filter`/`map`).
+
+**Étape 1 — écrire le store** `libs/companies/data-access/src/lib/companies.store.ts`, puis
+l'exporter dans le barrel (`export * from './lib/companies.store';`) :
+
+```ts
+import { inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
+import { firstValueFrom } from 'rxjs';
+import { Company, CompanyPayload } from '@mini-crm/companies/util';
+import { API_BASE_URL } from '@mini-crm/shared/util';
+
+type CompaniesState = { companies: Company[]; isLoading: boolean; error: string | null };
+const initialState: CompaniesState = { companies: [], isLoading: false, error: null };
+
+export const CompaniesStore = signalStore(
+  { providedIn: 'root' },
+  withState(initialState),
+  withMethods(
+    (store, http = inject(HttpClient), apiUrl = `${inject(API_BASE_URL)}/entreprises`) => ({
+      async load(): Promise<void> {
+        patchState(store, { isLoading: true, error: null });
+        try {
+          const companies = await firstValueFrom(http.get<Company[]>(apiUrl));
+          patchState(store, { companies, isLoading: false });
+        } catch {
+          patchState(store, { error: 'Impossible de charger les entreprises.', isLoading: false });
+        }
+      },
+      // Charge une entreprise par id (pré-remplissage de l'édition). Pose `error` et renvoie
+      // null en cas d'échec → une seule source d'erreur : le store.
+      async loadOne(id: number): Promise<Company | null> {
+        patchState(store, { error: null });
+        try {
+          return await firstValueFrom(http.get<Company>(`${apiUrl}/${id}`));
+        } catch {
+          patchState(store, { error: "Impossible de charger l'entreprise." });
+          return null;
+        }
+      },
+      async add(payload: CompanyPayload): Promise<void> {
+        patchState(store, { error: null });
+        try {
+          const created = await firstValueFrom(http.post<Company>(apiUrl, payload));
+          patchState(store, (state) => ({ companies: [...state.companies, created] }));
+        } catch {
+          patchState(store, { error: "Impossible de créer l'entreprise." });
+        }
+      },
+      async update(id: number, payload: CompanyPayload): Promise<void> {
+        patchState(store, { error: null });
+        try {
+          const updated = await firstValueFrom(http.put<Company>(`${apiUrl}/${id}`, payload));
+          patchState(store, (state) => ({
+            companies: state.companies.map((c) => (c.id === id ? updated : c)),
+          }));
+        } catch {
+          patchState(store, { error: "Impossible de modifier l'entreprise." });
+        }
+      },
+      async remove(id: number): Promise<void> {
+        patchState(store, { error: null });
+        try {
+          await firstValueFrom(http.delete<void>(`${apiUrl}/${id}`));
+          patchState(store, (state) => ({
+            companies: state.companies.filter((c) => c.id !== id),
+          }));
+        } catch {
+          patchState(store, { error: "Impossible de supprimer l'entreprise." });
+        }
+      },
+    }),
+  ),
+);
+```
+
+**Étape 2 — supprimer `CompanyService`.** Le store le remplace **intégralement** (HTTP + état).
+On supprime `libs/companies/data-access/src/lib/company.ts` et on retire son export du barrel — il ne
+restera plus que `export * from './lib/companies.store';`. Les imports `CompanyService` qui cassent
+dans les pages sont justement ce qu'on remplace à l'étape 3.
+
+**Étape 3 — brancher les composants sur le store.** Partout, on **injecte `CompaniesStore` au lieu de
+`CompanyService`**, on lit les **signaux** du store, et on **appelle ses méthodes** (les `subscribe()`
+disparaissent → `await`). Les templates, eux, ne changent pas (`companies()`, `error()` restent
+identiques).
+
+`page-list-companies.ts` :
+
+```ts
+// AVANT (service)                           // APRÈS (store)
+private readonly companyService =            private readonly store =
+  inject(CompanyService);                      inject(CompaniesStore);
+
+protected readonly companies =               protected readonly companies =
+  this.companyService.companies;               this.store.companies;
+protected readonly error =                   protected readonly error =
+  this.companyService.error;                   this.store.error;
+
+ngOnInit() { this.companyService.load(); }   ngOnInit() { this.store.load(); }
+
+// dans confirmDelete()                       // dans confirmDelete()
+this.companyService.remove(id);              this.store.remove(id);
+```
+
+`page-add-company.ts` — le `subscribe` devient un `await` :
+
+```ts
+// AVANT
+onSave(payload: CompanyPayload): void {
+  this.companyService.create(payload).subscribe({
+    next: () => this.router.navigate(['/companies', 'list']),
+    error: () => this.error.set("Impossible d'ajouter l'entreprise."),
+  });
+}
+
+// APRÈS
+private readonly store = inject(CompaniesStore);
+protected readonly error = this.store.error; // l'erreur vient désormais du store
+
+async onSave(payload: CompanyPayload): Promise<void> {
+  await this.store.add(payload);
+  if (!this.store.error()) {
+    this.router.navigate(['/companies', 'list']);
+  }
+}
+```
+
+`page-edit-company.ts` — idem pour le chargement et l'enregistrement :
+
+```ts
+// AVANT : getOne(...).subscribe({ next, error })
+ngOnInit(): void {
+  this.companyService.getOne(this.id()).subscribe({
+    next: (company) => this.company.set(company),
+    error: () => this.error.set("Impossible de charger l'entreprise."),
+  });
+}
+
+// APRÈS : une seule source d'erreur (le store) ; `loadOne` renvoie null si échec
+protected readonly error = this.store.error;   // plus de signal `error` local
+
+async ngOnInit(): Promise<void> {
+  this.company.set(await this.store.loadOne(this.id()));
+}
+
+// APRÈS : enregistrement
+async onSave(payload: CompanyPayload): Promise<void> {
+  await this.store.update(this.id(), payload);
+  if (!this.store.error()) {
+    this.router.navigate(['/companies', 'list']);
+  }
+}
+```
+
+> **À retenir** : `inject(CompaniesStore)` remplace `inject(CompanyService)` ; on **lit des signaux**
+> (`store.companies()`, `store.error()`) et on **appelle des méthodes** (`store.load()`,
+> `store.add()`…) ; les `.subscribe()` deviennent des `await`. Les templates restent inchangés.
+
+> **Une seule source d'erreur.** Toutes les méthodes du store posent l'erreur dans l'état
+> (`patchState(store, { error })`), y compris `loadOne` (qui renvoie `null` en cas d'échec). Les pages
+> n'ont donc **pas** de signal `error` local : elles lisent `store.error()`. La règle : on choisit
+> **une** stratégie (tout via `store.error`) et on s'y tient sur **toutes** les méthodes — éviter le
+> mélange « certaines lèvent, d'autres avalent ».
+
+**Ce qu'on n'ajoute PAS maintenant (et pourquoi) :**
+
+- **`withComputed`** = état **dérivé** (valeur calculée à partir de l'état, mémoïsée). Avantages :
+  mémoïsation (recalcul seulement si une dépendance change), source de vérité unique/DRY, composants
+  « bêtes », cohérence auto. **Mais inutile ici** : on lit juste `companies` / `isLoading` / `error`,
+  aucune dérivation (pas de tri, pas de recherche, pas de sélection). Règle : on l'ajoute **le jour où**
+  une vraie dérivation réutilisée apparaît.
+- **`withEntities`** = collection **normalisée** (`entityMap` + `ids`) avec updaters prêts
+  (`setAllEntities`, `addEntity`, `updateEntity`, `removeEntity`). **Pas un gain de perf pertinent ici** :
+  l'écart `O(n)` (`.find`/`.filter`) vs `O(1)` (`entityMap[id]`) n'est mesurable qu'à **plusieurs
+  milliers d'items mutés fréquemment** ; et le rendu, lui, dépend du **`track`** dans `@for` (+ virtual
+  scroll), pas du store. Le vrai bénéfice = **moins de boilerplate**, payé par +5 concepts → on s'en
+  passe pour un public débutant.
+  - **Tipping point** (quand `withEntities` devient utile) : ≥ 3-4 entités au même CRUD, **beaucoup**
+    de màj par id, **normalisation** de données reliées par id (relations — ex. `order.contact_id` /
+    `entreprise_id`), ou collection > quelques milliers d'items mutés. Aucun critère rempli chez nous
+    pour l'instant.
+
+**Progression pédagogique V1 → V2 :** d'abord la V1 (spreads explicites à la main), **puis** rebascule
+en V2 avec `withEntities` comme module « optimisation/standardisation ». C'est un **avant/après**
+parlant : le `filter(c => c.id !== id)` écrit à la main en V1 devient `removeEntity(id)` en V2 — ils
+**mesurent** ce que l'abstraction leur fait gagner au lieu de subir une magie.
 
 ---
 
