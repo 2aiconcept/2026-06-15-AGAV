@@ -7,8 +7,9 @@ import {
 } from '@angular/router';
 
 import { routes } from './app.routes';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { API_BASE_URL } from '@mini-crm/shared/util';
+import { authInterceptor } from '@mini-crm/shared/data-access';
 import { environment } from '../environments/environment';
 
 export const appConfig: ApplicationConfig = {
@@ -16,7 +17,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // withComponentInputBinding : lie les paramètres de route (ex. :id) aux input() du composant.
     provideRouter(routes, withPreloading(PreloadAllModules), withComponentInputBinding()),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([authInterceptor])),
     // L'app (et elle seule) connaît l'environnement : elle fournit l'URL d'API aux libs data-access.
     { provide: API_BASE_URL, useValue: environment.apiBaseUrl },
   ],

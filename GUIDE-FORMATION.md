@@ -17,7 +17,7 @@
 | 2     | Dette technique (appropriation du code)          | ✅ détaillée — ⚠️ non soldée |
 | 3     | Découpage des routes enfant par feature          | ✅ réalisée                 |
 | 4     | Migration Nx monorepo (libs feature par feature) | ✅ réalisée                 |
-| 5     | Intégration de l'API JWT (data-access + auth)    | 🚧 à venir                  |
+| 5     | Intégration de l'API JWT (data-access + auth)    | 🚧 en cours                 |
 | 6     | Tests (Vitest + Playwright)                      | 🚧 à venir                  |
 
 > **Annexe A** — référence complète de l'**API Mini-CRM JWT** (endpoints, entrées/sorties,
@@ -230,19 +230,52 @@ npx nx g @nx/angular:library libs/<domaine>/<couche> \
 > détail des endpoints et des interfaces). Objectif : remplir les libs `data-access`/`util` des
 > domaines et transformer `Auth` (aujourd'hui simulé) en authentification JWT réelle.
 
-**Étapes prévues :**
+**Réalisé (16/06) — chaîne d'authentification JWT.**
 
-1. **Pointer `apiBaseUrl`** vers l'API JWT dans `environment.ts` / `environment.prod.ts`
-   (`API_BASE_URL` est déjà fourni par l'app — rien à changer côté libs).
-2. **Créer les interfaces** (`util`) par domaine — pattern `Entity` + `EntityInput`
-   (`= Omit<Entity, 'id'>`), cf. Annexe A. ⚠️ **Mapping** : l'entité API `Opportunité` correspond à
-   la feature **`orders`**, et `Entreprise` à **`companies`**.
-3. **Services `data-access`** (signals + `HttpClient` + `inject(API_BASE_URL)`) sur le modèle de
+- **`apiBaseUrl` corrigé** ([environment.ts](apps/mini-crm/src/environments/environment.ts) +
+  [environment.prod.ts](apps/mini-crm/src/environments/environment.prod.ts)) →
+  `https://mini-crm-api-jwt-production.up.railway.app/api`. ⚠️ **Piège vécu** : la valeur sans
+  `https://` était traitée comme une **URL relative** par le navigateur
+  (`http://localhost:4200/mini-crm-api-…/auth/register` → 404). Et l'API attend le préfixe `/api`
+  (le `CompanyService` fait déjà `${API_BASE_URL}/entreprises`).
+- **Interfaces auth** dans `@mini-crm/shared/util`
+  ([auth-models.ts](libs/shared/util/src/lib/auth-models.ts)) : `RegisterInput` (extends
+  `Credentials` + `nom`/`prenom`), `UserProfile`, `AuthResponse`. `Credentials` reste le DTO de login.
+- **Service `Auth`** ([auth.ts](libs/shared/data-access/src/lib/auth.ts)) passé en **vrai JWT** :
+  - `signin(credentials): Observable<AuthResponse>` → `POST {api}/auth/login` ;
+  - `signup(userData: RegisterInput): Observable<AuthResponse>` → `POST {api}/auth/register` ;
+  - `tap()` → `storeSession()` persiste **token + profil** ; état exposé : `token`,
+    `currentUser` (= email, pour l'en-tête), `isAuthenticated` (= token présent) ;
+  - **SSR-safe** : aucun `localStorage` à l'initialisation — tout est derrière
+    `isPlatformBrowser(PLATFORM_ID)`, restauré au démarrage via `restoreSession()` (corrige la dette
+    SSR de Phase 2) ;
+  - nettoyage du `console.log` et du signal mort `test`.
+- **`page-connect`** ([page-connect.ts](libs/connect/feature/src/lib/page-connect/page-connect.ts)) :
+  `connect()`→`signin`, `createAccount()`→`signup`, navigation vers `/companies/list`, et
+  **affichage du message d'erreur réel de l'API** (via `HttpErrorResponse` → `err.error?.error`,
+  encart `aria-live`). ⚠️ **Piège vécu** : un 400 « Cet email est déjà utilisé » (base **en
+  mémoire**) ressemblait à un problème CORS — c'en était pas un (l'API renvoie
+  `Access-Control-Allow-Origin`). Pour retester : email neuf ou `POST /api/admin/reset-formation`.
+- **Interceptor JWT fonctionnel**
+  ([auth.interceptor.ts](libs/shared/data-access/src/lib/auth.interceptor.ts)) : ajoute
+  `Authorization: Bearer <token>` quand un token existe (les requêtes anonymes login/register passent
+  inchangées), `req.clone({ setHeaders })` (immuabilité). Enregistré dans le shell via
+  `provideHttpClient(withInterceptors([authInterceptor]))` ([app.config.ts](apps/mini-crm/src/app/app.config.ts)).
+
+**Reste à faire :**
+
+1. **Formulaire signup** : ajouter les champs `nom`/`prenom` (visibles en mode inscription, validation
+   conditionnelle au mode) et faire émettre un `RegisterInput` à `form-connect` — aujourd'hui
+   `createAccount` envoie des `nom`/`prenom` **placeholder**.
+2. **Gestion des `401/403`** : `catchError` (dans l'interceptor ou un second interceptor) → `Auth.logout()`
+   + redirection `/connect` quand le token est expiré/invalide.
+3. **Interfaces métier** (`util`) par domaine — `Entreprise`/`EntrepriseInput` (aligner la `Company`
+   existante), `Contact`/`ContactInput`, `Opportunite`/`OpportuniteInput` (cf. Annexe A).
+   ⚠️ **Mapping** : `Opportunité` (API) ↔ feature **`orders`**, `Entreprise` ↔ **`companies`**.
+4. **Services `data-access`** (signals + `HttpClient` + `inject(API_BASE_URL)`) sur le modèle de
    `CompanyService`, dans `contacts-data-access` et `orders-data-access`.
-4. **Auth JWT** : `Auth` (`shared/data-access`) appelle `POST /api/auth/login` / `register`, stocke
-   le `token` (⚠️ **SSR-safe** : `localStorage` derrière `isPlatformBrowser`/`afterNextRender`).
-5. **Interceptor** `Authorization: Bearer <token>` (`shared/data-access` ou `util`) + gestion des
-   `401/403` (déconnexion/redirection vers `/connect`).
+5. **Garde de route** (`CanActivate`/functional guard) sur les features protégées → redirection
+   `/connect` si non authentifié.
 
 ---
 
