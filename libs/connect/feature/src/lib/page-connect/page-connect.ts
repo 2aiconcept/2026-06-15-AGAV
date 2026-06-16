@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { FormConnect } from '@mini-crm/connect/ui';
 import { Auth } from '@mini-crm/shared/data-access';
@@ -26,7 +27,8 @@ export class PageConnect {
     this.error.set(null);
     this.auth.signin(credentials).subscribe({
       next: () => this.router.navigate(['/companies', 'list']),
-      error: () => this.error.set('Email ou mot de passe incorrect.'),
+      error: (err: HttpErrorResponse) =>
+        this.error.set(err.error?.error ?? 'Email ou mot de passe incorrect.'),
     });
   }
 
@@ -35,10 +37,11 @@ export class PageConnect {
     this.error.set(null);
     // Le formulaire ne collecte pour l'instant que email + mot de passe ;
     // `nom`/`prenom` (requis par l'API) seront ajoutés au form signup → RegisterInput.
-    const userData: RegisterInput = { ...credentials, nom: '', prenom: '' };
+    const userData: RegisterInput = { ...credentials, nom: 'chris', prenom: 'chris' };
     this.auth.signup(userData).subscribe({
       next: () => this.router.navigate(['/companies', 'list']),
-      error: () => this.error.set("L'inscription a échoué (email déjà utilisé ?)."),
+      error: (err: HttpErrorResponse) =>
+        this.error.set(err.error?.error ?? "L'inscription a échoué."),
     });
   }
 }

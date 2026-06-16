@@ -1,1 +1,5 @@
+@if (error(); as message) {
+  <div class="alert alert-danger" role="alert" aria-live="assertive">{{ message }}</div>
+}
+
 <app-form-connect [model]="model()" (signIn)="connect($event)" (signUp)="createAccount($event)" />

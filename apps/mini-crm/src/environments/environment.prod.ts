@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://mini-crm-api-production-298d.up.railway.app/api',
+  apiBaseUrl: 'https://mini-crm-api-jwt-production.up.railway.app/api',
 };
