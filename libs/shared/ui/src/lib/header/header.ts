@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { LanguageSwitcher } from '../language-switcher/language-switcher';
 
 /**
  * En-tête applicatif — composant présentationnel pur (lib `ui`, sans dépendance `data-access`).
  * L'état d'authentification et la déconnexion sont fournis/remontés par le shell (`App`),
- * qui est le seul à connaître le service `Auth`.
+ * qui est le seul à connaître le service `Auth`. Il compose le `LanguageSwitcher` (autonome).
  */
 @Component({
   selector: 'app-header',
-  imports: [],
+  imports: [LanguageSwitcher],
   templateUrl: './header.html',
   styleUrl: './header.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

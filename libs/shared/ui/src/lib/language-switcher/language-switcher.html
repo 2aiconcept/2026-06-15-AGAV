@@ -1,0 +1,8 @@
+<button
+  type="button"
+  class="btn btn-sm btn-outline-light"
+  (click)="toggle()"
+  [attr.aria-label]="activeLang() === 'fr' ? 'Switch to English' : 'Passer en français'"
+>
+  {{ activeLang() === 'fr' ? 'EN' : 'FR' }}
+</button>
