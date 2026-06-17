@@ -20,15 +20,15 @@ import { ConfirmDialog } from '@mini-crm/shared/ui';
 })
 export default class PageListCompanies implements OnInit {
   // INJECT COMPANY store
-  private readonly companiesStore = inject(CompaniesState);
+  private readonly store = inject(CompaniesState);
 
   // INJECT ROUTER
   private readonly router = inject(Router);
 
   // SIGNAL FOR COMPANIES COLLECTION
-  protected readonly companies = this.companiesStore.companies;
+  protected readonly companies = this.store.companies;
   // SIGNAL FOR API ERRORS
-  protected readonly error = this.companiesStore.error;
+  protected readonly error = this.store.error;
 
   // Id de l'entreprise dont la suppression est en attente de confirmation
   // (null = aucune confirmation en cours, la modale est fermée).
@@ -47,7 +47,7 @@ export default class PageListCompanies implements OnInit {
   });
 
   ngOnInit(): void {
-    this.companiesStore.load();
+    this.store.load();
   }
 
   // METHOD TO REDIRECT TO ADD
@@ -69,7 +69,7 @@ export default class PageListCompanies implements OnInit {
   protected confirmDelete(): void {
     const id = this.pendingDeleteId();
     if (id !== null) {
-      // this.companiesStore.remove(id);
+      this.store.remove(id);
     }
     this.pendingDeleteId.set(null);
   }

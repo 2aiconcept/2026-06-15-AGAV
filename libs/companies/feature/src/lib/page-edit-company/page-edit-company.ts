@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { CompanyService } from '@mini-crm/companies/data-access';
+import { CompaniesState, CompanyService } from '@mini-crm/companies/data-access';
 import { Company, CompanyPayload } from '@mini-crm/companies/util';
 import { FormCompany } from '@mini-crm/companies/ui';
 
@@ -21,7 +21,7 @@ import { FormCompany } from '@mini-crm/companies/ui';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class PageEditCompany implements OnInit {
-  private readonly companyService = inject(CompanyService);
+  private readonly store = inject(CompaniesState);
   private readonly router = inject(Router);
 
   /** Id lié depuis la route `edit-company/:id` (withComponentInputBinding), converti en nombre. */
@@ -31,7 +31,7 @@ export default class PageEditCompany implements OnInit {
   private readonly company = signal<Company | null>(null);
 
   /** Message d'erreur éventuel (chargement ou enregistrement). */
-  protected readonly error = signal<string | null>(null);
+  protected readonly error = this.store.error;
 
   /** Valeurs initiales du formulaire, sans l'id (le formulaire ne manipule que le payload). */
   protected readonly initialValue = computed<CompanyPayload | null>(() => {
@@ -47,22 +47,19 @@ export default class PageEditCompany implements OnInit {
     };
   });
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     // Chargement depuis l'API (source de vérité), pas depuis la collection locale : données
     // fraîches même si un autre utilisateur a modifié l'entreprise, et fonctionne en accès
     // direct / refresh de l'URL (où la collection locale serait vide).
-    this.companyService.getOne(this.id()).subscribe({
-      next: (company) => this.company.set(company),
-      error: () => this.error.set("Impossible de charger l'entreprise."),
-    });
+    // this.companiesStore.loadOne(this.id());
+    this.company.set(await this.store.loadOne(this.id()));
   }
 
   /** Reçoit les données valides du formulaire, enregistre puis revient à la liste. */
   protected onSave(payload: CompanyPayload): void {
-    this.error.set(null);
-    this.companyService.update(this.id(), payload).subscribe({
-      next: () => this.router.navigate(['/list-companies']),
-      error: () => this.error.set("Impossible d'enregistrer les modifications."),
-    });
+    this.store.update(this.id(), payload);
+    if (!this.store.error()) {
+      this.router.navigate(['companies', 'list']);
+    }
   }
 }
