@@ -1,13 +1,6 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  OnInit,
-  signal,
-} from '@angular/core';
-import { CompaniesState } from '@mini-crm/companies/data-access';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { CompaniesState } from '@mini-crm/companies/data-access';
 import { TableCompany } from '@mini-crm/companies/ui';
 import { ConfirmDialog } from '@mini-crm/shared/ui';
 
@@ -18,64 +11,37 @@ import { ConfirmDialog } from '@mini-crm/shared/ui';
   styleUrl: './page-list-companies.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class PageListCompanies implements OnInit {
-  // INJECT COMPANY store
+export default class PageListCompanies {
   private readonly store = inject(CompaniesState);
-
-  // INJECT ROUTER
   private readonly router = inject(Router);
 
-  // SIGNAL FOR COMPANIES COLLECTION
+  // Signaux du store, exposés au template (alias).
   protected readonly companies = this.store.entities;
-  // SIGNAL FOR API ERRORS
   protected readonly error = this.store.error;
 
-  // Id de l'entreprise dont la suppression est en attente de confirmation
-  // (null = aucune confirmation en cours, la modale est fermée).
+  /** Id de l'entreprise en attente de confirmation de suppression (null = modale fermée). */
   protected readonly pendingDeleteId = signal<number | null>(null);
 
-  // Entreprise correspondante, pour afficher son nom dans la confirmation.
-  private readonly pendingCompany = computed(
-    () => this.companies().find((company) => company.id === this.pendingDeleteId()) ?? null,
-  );
-
-  protected readonly confirmMessage = computed(() => {
-    const company = this.pendingCompany();
-    return company
-      ? `Voulez-vous vraiment supprimer « ${company.nom} » ? Cette action est irréversible.`
-      : '';
-  });
-
-  ngOnInit(): void {
+  constructor() {
     this.store.load();
   }
 
-  // METHOD TO REDIRECT TO ADD
   /** Redirige vers le formulaire d'ajout d'une entreprise. */
   protected onAddCompany(): void {
     this.router.navigate(['companies', 'add']);
   }
 
-  editItem(id: number) {
+  /** Redirige vers le formulaire d'édition. */
+  protected editItem(id: number): void {
     this.router.navigate(['companies', 'edit', id]);
   }
 
-  /** Clic sur « Supprimer » : ouvre la confirmation (ne supprime pas encore). */
-  protected onDeleteRequest(id: number): void {
-    this.pendingDeleteId.set(id);
-  }
-
-  /** Confirmation : supprime réellement puis referme la modale. */
+  /** Confirmation : supprime réellement via le store puis referme la modale. */
   protected confirmDelete(): void {
     const id = this.pendingDeleteId();
     if (id !== null) {
       this.store.remove(id);
     }
-    this.pendingDeleteId.set(null);
-  }
-
-  /** Annulation : referme la modale sans rien supprimer. */
-  protected cancelDelete(): void {
     this.pendingDeleteId.set(null);
   }
 }

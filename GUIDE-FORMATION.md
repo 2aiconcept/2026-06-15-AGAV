@@ -18,7 +18,7 @@
 | 3     | Découpage des routes enfant par feature          | ✅ réalisée                 |
 | 4     | Migration Nx monorepo (libs feature par feature) | ✅ réalisée                 |
 | 5     | Intégration de l'API JWT (data-access + auth)    | 🚧 en cours                 |
-| 6     | Tests (Vitest + Playwright)                      | 🚧 à venir                  |
+| 6     | Tests (Vitest + Playwright)                      | ✅ companies (unit + e2e)   |
 
 > **Annexe A** — référence complète de l'**API Mini-CRM JWT** (endpoints, entrées/sorties,
 > interfaces TypeScript à créer). À utiliser en Phase 5.
@@ -723,6 +723,76 @@ export const CompaniesStore = signalStore({ providedIn: 'root' }, withCrud<Compa
 > `with-crud.ts` devient la seule source de vérité du CRUD. C'est un choix **pédagogique**, pas un
 > patron à laisser en l'état.
 
+### Refactoring de fin de feature : alléger `page-list-companies`
+
+> Une fois `companies` complète, on **allège la page liste**. Objectif : **moins de code et surtout
+> moins de tests unitaires**. Principe : tout ce qui est **trivial** (setters, navigation, message
+> figé) part dans le **template** (couvert en **e2e**) ; on ne **garde et ne teste** que la **vraie
+> logique** (`confirmDelete`).
+
+**Ce qu'on retire (et l'effet sur les tests) :**
+
+| Avant (dans le `.ts`) | Devient | Test en moins ? |
+| --- | --- | --- |
+| `pendingCompany()` + `confirmMessage()` (2 `computed`) | **message statique** dans la modale | ✅✅ **le vrai gain** (logique testable supprimée) |
+| `onDeleteRequest()` / `cancelDelete()` (setters) | bindings inline `(deleteCompany)="pendingDeleteId.set($event)"` / `(cancelled)="pendingDeleteId.set(null)"` | ✅ (triviaux) |
+| `ngOnInit` + `implements OnInit` | `constructor()` qui appelle `store.load()` | ~ |
+| `onAddCompany()` / `editItem()` (navigation) | **gardés en méthodes** | — (tests de faible valeur → e2e) |
+| `confirmDelete()` (vraie logique) | **gardé** | — (le seul test à vraie valeur) |
+
+→ On passe de **~7 unités testables à ~3** (dont une seule, `confirmDelete`, mérite vraiment un test).
+
+**⚠️ Deux pièges vécus (importants à transmettre) :**
+
+1. **`routerLink` ne réduit PAS les tests unitaires.** La directive impose quand même de fournir le
+   `Router` dans le `beforeEach` (sinon le rendu échoue), et `editItem` l'utilise déjà → le Router
+   reste dans le setup. `routerLink` allège le **code**, pas les **tests** → on l'a **volontairement
+   écarté** ici.
+2. **Lire le store directement au template échoue** : `store.entities()` / `store.error()` déclenchent
+   **TS4111** (`noPropertyAccessFromIndexSignature` est activé) → _« Property comes from an index
+   signature, must be accessed with ['…'] »_. **Solution** : garder des **alias** dans le `.ts` et les
+   lire au template.
+
+**Résultat (extrait du `.ts`) :**
+
+```ts
+export default class PageListCompanies {
+  private readonly store = inject(CompaniesState);
+  private readonly router = inject(Router);
+
+  // Alias des signaux du store → évite TS4111 au template (on lit `companies()` / `error()`).
+  protected readonly companies = this.store.entities;
+  protected readonly error = this.store.error;
+
+  protected readonly pendingDeleteId = signal<number | null>(null);
+
+  constructor() {
+    this.store.load();
+  }
+
+  protected onAddCompany(): void {
+    this.router.navigate(['companies', 'add']);
+  }
+  protected editItem(id: number): void {
+    this.router.navigate(['companies', 'edit', id]);
+  }
+  protected confirmDelete(): void {
+    const id = this.pendingDeleteId();
+    if (id !== null) {
+      this.store.remove(id);
+    }
+    this.pendingDeleteId.set(null);
+  }
+}
+```
+
+Côté template : **message statique** dans `<app-confirm-dialog>` + bindings inline pour
+`(deleteCompany)` et `(cancelled)`.
+
+> **Règle à retenir** : on **allège le trivial vers le template** (validé en e2e), on **garde et teste
+> l'orchestration**. Et on **mesure le vrai gain** : ici ce sont les **2 `computed` supprimés**
+> (logique testable), pas le `routerLink`/inline (du confort de lecture).
+
 ### Appliquer la recette aux autres features (TP)
 
 > Une fois `companies` fait en live, les stagiaires **répliquent la même recette** sur `contacts` et
@@ -749,6 +819,155 @@ export const CompaniesStore = signalStore({ providedIn: 'root' }, withCrud<Compa
 > Comme l'**API exposée par `withCrud` est identique** (`entities`/`isLoading`/`error` +
 > `load`/`loadOne`/`add`/`update`/`remove`), **seuls les noms changent** : les pages se calquent sur
 > `companies`. C'est tout l'objectif du TP — vérifier l'autonomie des stagiaires sur la recette.
+
+---
+
+## Phase 6 — Tests : unitaires (Vitest) + e2e (Playwright) ✅ _(companies)_
+
+> Tests **co-localisés** (`*.spec.ts` à côté du source), lancés via le builder Angular
+> (`nx test` / `ng test`). Principe (cf. `.claude/CLAUDE.md`) : **tester le comportement via l'API
+> publique** (pas les champs privés), **mocker le HTTP** (jamais de réseau réel), **une responsabilité
+> par test** (Arrange / Act / Assert). Pour `companies` : **18 tests**, en **3 patterns** selon la couche.
+
+> **Pré-requis** : on a d'abord **supprimé le `CompanyService` mort** (remplacé par le store) — sinon
+> son spec et les pages qui l'importaient encore faisaient échouer la suite. (C'est l'« étape 2 :
+> supprimer le service » de la migration store, enfin soldée.)
+
+### Pattern 1 — `data-access` (le store) : vrai store + HTTP mocké
+
+Le store porte la **vraie logique** (HTTP + état) → on le teste **pour de vrai** avec
+`HttpTestingController`, en **assertant sur les signaux** (synchrone). C'est le test à plus forte valeur.
+
+```ts
+beforeEach(() => {
+  TestBed.configureTestingModule({
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(), // backend de test, pas de réseau
+      { provide: API_BASE_URL, useValue: API }, // le store lit ce token
+    ],
+  });
+  store = TestBed.inject(CompaniesState); // providedIn:'root' → simple inject
+  http = TestBed.inject(HttpTestingController);
+});
+afterEach(() => http.verify()); // aucune requête oubliée
+
+it('load() : GET puis remplit la collection', async () => {
+  const done = store.load(); // 1. appel (Promise)
+  http.expectOne(`${API}/entreprises`).flush([COMPANY]); // 2. réponse simulée
+  await done; // 3. attendre firstValueFrom
+  expect(store.entities()).toEqual([COMPANY]); // 4. assert sur le SIGNAL
+});
+```
+
+→ couvre `load` / `loadOne` / `add` / `update` / `remove` **+ le cas d'erreur** (`error` renseigné).
+
+### Pattern 2 — `feature` (pages, _smart_) : faux store + faux Router
+
+Les pages ne font qu'**orchestrer** le store → on les **isole** avec un **faux store** (signaux +
+méthodes espionnées `vi.fn()`) et un **faux Router**. Pas de HTTP, pas de DOM.
+
+```ts
+const store = { entities: signal([]), error: signal(null), load: vi.fn(), remove: vi.fn() };
+const router = { navigate: vi.fn() };
+TestBed.configureTestingModule({
+  imports: [PageListCompanies],
+  providers: [
+    { provide: CompaniesState, useValue: store }, // on substitue le vrai store
+    { provide: Router, useValue: router },
+  ],
+});
+// …
+it('confirmDelete supprime via le store puis ferme la modale', () => {
+  component['pendingDeleteId'].set(7);
+  component['confirmDelete']();
+  expect(store.remove).toHaveBeenCalledWith(7);
+  expect(component['pendingDeleteId']()).toBeNull();
+});
+```
+
+> Les membres `protected` sont accédés **entre crochets** (`component['confirmDelete']()`) : pragmatique
+> pour un test unitaire de composant. Et `createComponent(...)` exécute le `constructor` → on vérifie
+> par exemple que `store.load()` est appelé à la création.
+
+### Pattern 3 — `ui` (composants présentationnels) : inputs / outputs
+
+Les composants `ui` n'ont **aucune dépendance** → on teste leur **contrat public** : on **fournit les
+inputs** (`setInput`) et on **vérifie les outputs** (`output.subscribe`).
+
+```ts
+it('form-company : émet `save` quand le formulaire est valide', () => {
+  const saved = vi.fn();
+  component.save.subscribe(saved);
+  fixture.componentRef.setInput('initialValue', VALID);
+  component.ngOnInit(); // recopie initialValue → model valide
+  component['onSubmit'](new Event('submit'));
+  expect(saved).toHaveBeenCalledWith(VALID);
+});
+```
+
+(`table-company` : `editCompanyFn(id)` → émet `editCompany` avec l'id ; idem `deleteCompany`.)
+
+### Lancer & récap
+
+```bash
+nx test companies-data-access   # ou companies-feature / companies-ui
+```
+
+| Couche | Approche | Ce qu'on teste |
+| --- | --- | --- |
+| `data-access` (store) | **vrai store** + `HttpTestingController` | HTTP + état (signaux) |
+| `feature` (pages) | **faux store** + faux `Router` | orchestration (délégation + navigation) |
+| `ui` (table / form) | **inputs / outputs** | contrat présentationnel (validation, émissions) |
+
+> **À retenir** : on **mocke le HTTP une seule fois** (au niveau du store) et on **fake le store** pour
+> les composants → chaque test reste **petit, rapide, isolé**. Bonus signaux : assertions **synchrones**
+> (`store.entities()`), sans `fakeAsync` ni `async` pipe.
+
+### Tests e2e (Playwright)
+
+> Règle (cf. `.claude/CLAUDE.md`) : **jamais l'API de prod** → on **stub le réseau** avec
+> `page.route()`. **Locators par rôle/label** (réutilise le contrat d'accessibilité), **assertions
+> web-first** (auto-attente, pas de `sleep`), tests **indépendants** (état semé/nettoyé par test).
+> Config : [playwright.config.ts](playwright.config.ts) (baseURL `:4200`, `webServer: npm start`,
+> `trace: 'on-first-retry'`) ; specs dans `e2e/`.
+
+**Deux helpers** ([e2e/support/companies-api.ts](e2e/support/companies-api.ts)) :
+
+- **`seedAuth(page)`** : amorce le `localStorage` (token + user) **avant** le chargement → le service
+  `Auth` se croit connecté et le **guard laisse passer `/companies`**, **sans jouer l'UI de login**
+  (chaque test companies reste indépendant du flux de connexion).
+- **`mockCompaniesApi(page, seed)`** : stub **stateful** (tableau en mémoire) de `…/api/entreprises`
+  (GET liste / POST) et `…/api/entreprises/:id` (GET / PUT / DELETE) → un CRUD réaliste **sans réseau**.
+
+```ts
+test.beforeEach(async ({ page }) => {
+  await seedAuth(page); // authentifié via localStorage
+  await mockCompaniesApi(page, SEED); // API stubbée (état en mémoire)
+});
+
+test('ajoute une entreprise et la voit dans la liste', async ({ page }) => {
+  await page.goto('/companies/list');
+  await page.getByRole('button', { name: 'Ajouter une entreprise' }).click();
+  await page.getByLabel('Nom').fill('NewCo');
+  // … secteur / adresse / téléphone …
+  await page.getByRole('button', { name: 'Ajouter' }).click();
+  await expect(page).toHaveURL(/\/companies\/list$/);
+  await expect(page.getByText('NewCo')).toBeVisible();
+});
+```
+
+**Scénarios couverts** : liste, ajout, édition (formulaire pré-rempli), suppression **avec la modale
+de confirmation** (`getByRole('dialog')`). Le `connect.spec` a été mis à jour pour **stubber
+`POST /api/auth/login`** (il datait de l'auth simulée).
+
+```bash
+npx playwright install   # une fois (navigateurs)
+npm run e2e              # = playwright test  →  6 tests verts (companies + connexion)
+```
+
+> **Reste à faire (Phase 6)** : répliquer **unitaires + e2e** sur `contacts` / `orders` (mêmes
+> patterns), et brancher les e2e en CI (`trace: 'on-first-retry'` déjà prêt).
 
 ---
 
@@ -818,6 +1037,22 @@ Dans `apps/mini-crm/project.json` (l'**équivalent Nx d'`angular.json`**), sous 
 > crash**. Mais **faut-il** l'activer ? Pour ce CRM **derrière un login**, le gain est **marginal** —
 > et l'authentification pose un vrai souci.
 
+**Avantages du SSR (en général) :**
+
+- **SEO** : le serveur renvoie du **HTML complet** → indexable par les moteurs/crawlers.
+- **Premier rendu plus rapide** (FCP/LCP) : le contenu est visible **avant** le téléchargement et
+  l'exécution du JS.
+- **Aperçus sociaux** (Open Graph / cartes de partage) corrects.
+- **Perçu plus rapide** sur réseaux et appareils lents.
+
+**Inconvénients du SSR :**
+
+- **Infra serveur** (Node) à héberger / maintenir / payer — vs un simple hébergement **statique**.
+- **Complexité** : double exécution serveur + navigateur, **hydratation**, et **pas d'API navigateur**
+  (`window` / `localStorage`) pendant le rendu serveur → tout doit être SSR-safe.
+- **Authentification** : le serveur doit connaître l'utilisateur → **cookies** (pas `localStorage`).
+- **Bugs de mismatch / hydratation** possibles, surface de test accrue.
+
 **Gain de perf : faible ici.** Le SSR sert surtout le **SEO** et le **premier rendu de contenu** sur
 des pages **publiques**. Or :
 
@@ -845,6 +1080,113 @@ premier paint instantané — sans le souci d'auth, puisque le login n'a pas bes
 > **À retenir** : le SSR est fait pour le **contenu public / SEO**, pas pour un **dashboard derrière
 > login**. Et une auth par `localStorage` n'est **pas** compatible SSR « propre » — il faut des
 > **cookies** pour que le serveur connaisse l'utilisateur.
+
+---
+
+## Internationalisation (i18n) — Transloco
+
+> Lib retenue : **Transloco** (`@jsverse/transloco`) — i18n **runtime** (changement de langue **à
+> chaud**), adapté à une SPA full-signals (vs `@angular/localize` qui fige la langue au build).
+> Démonstration minimale : traduire `form-connect` en **FR/EN** + un **bouton de bascule** dans le header.
+>
+> **Docs :**
+>
+> - Installation — <https://jsverse.gitbook.io/transloco/getting-started/installation>
+> - Compatibilité Angular — <https://jsverse.gitbook.io/transloco/getting-started/angular-compatibility>
+> - Options de config — <https://jsverse.gitbook.io/transloco/getting-started/config-options>
+> - API de traduction — <https://jsverse.gitbook.io/transloco/core-concepts/translation-api>
+> - API **signals** — <https://jsverse.gitbook.io/transloco/core-concepts/signals>
+
+**Étape 1 — installer** (commande Nx-native ; Transloco **v8** pour Angular 21) :
+
+```bash
+npx nx add @jsverse/transloco
+```
+
+**Étape 2 — configurer** dans `app.config.ts` :
+
+```ts
+provideTransloco({
+  config: {
+    availableLangs: ['fr', 'en'],
+    defaultLang: 'fr',
+    reRenderOnLangChange: true, // changement de langue à chaud
+    prodMode: !isDevMode(),
+  },
+  loader: TranslocoHttpLoader,
+}),
+```
+
+**Étape 3 — le loader** (`app/transloco-loader.ts`) charge les JSON depuis les assets :
+
+```ts
+@Injectable({ providedIn: 'root' })
+export class TranslocoHttpLoader implements TranslocoLoader {
+  private readonly http = inject(HttpClient);
+  getTranslation(lang: string) {
+    return this.http.get<Translation>(`/assets/i18n/${lang}.json`);
+  }
+}
+```
+
+**Étape 4 — fichiers de traduction** dans `apps/mini-crm/public/assets/i18n/` (servis à
+`/assets/i18n/...`) : `fr.json` et `en.json`, avec le **namespace `connect`** (titres, labels, boutons,
+liens de bascule, `errors`).
+
+**Étape 5 — traduire `form-connect` (en signals)** :
+
+```ts
+// dans le composant
+protected readonly t = translateObjectSignal('connect') as Signal<ConnectTranslations | undefined>;
+// template : {{ t()?.email }} · {{ mode() === 'signin' ? t()?.signinTitle : t()?.signupTitle }}
+```
+
+- Les **messages d'erreur** sont affichés/traduits **côté template** via une heuristique (champ vide →
+  « obligatoire », sinon → « format invalide » / « 6 caractères min ») → les validateurs n'ont **plus
+  de `message`** codé en dur (`required`/`email`/`minLength` sans message).
+- Le `?.` est nécessaire car `t()` peut être **indéfini** tant que le fichier de langue n'est pas chargé
+  (chargement **async**).
+- ⚠️ **Pas de pipe `transloco` ni de directive `*transloco`** : on reste sur des **signals**
+  (`translateObjectSignal` / `translateSignal`) → cohérent **OnPush + zoneless**.
+
+**Étape 6 — le `LanguageSwitcher`** (bouton FR/EN, dans `shared/ui`, composé par le `Header`) :
+
+```ts
+private readonly transloco = inject(TranslocoService);
+protected readonly activeLang = toSignal(this.transloco.langChanges$, {
+  initialValue: this.transloco.getActiveLang(),
+});
+protected toggle(): void {
+  this.transloco.setActiveLang(this.transloco.getActiveLang() === 'fr' ? 'en' : 'fr');
+}
+```
+
+Composant **autonome** : le `Header` reste **dumb** sur l'auth (il ne fait que le composer). Bouton
+**toujours visible** (même déconnecté → on change de langue sur la page de login). `TranslocoService`
+est une lib **npm**, pas une lib `@mini-crm` → l'injecter dans un composant `ui` ne viole **aucune**
+boundary.
+
+### Zoom : `toSignal()` — c'est **Angular**, pas Transloco (mais clé en full-signals)
+
+`toSignal()` vient de **`@angular/core/rxjs-interop`** et **convertit un Observable en Signal**. Ça
+**n'a rien à voir avec Transloco** : c'est un utilitaire **Angular** générique.
+
+Ici, `TranslocoService.langChanges$` est un **Observable** (la langue active au fil du temps). Pour
+rester **cohérent avec notre archi tout-signaux** (OnPush + zoneless), on le **ponte en signal** avec
+`toSignal(...)` → `activeLang()` se lit directement dans le template, **sans `subscribe`, sans `async`
+pipe**, et **sans gérer le désabonnement** (`toSignal` nettoie tout seul à la destruction du composant).
+
+**Pourquoi c'est hyper utile pour nous :** dès qu'une lib expose un **Observable** (Transloco, le
+**Router**, un **service HTTP** tiers, des **events**…), `toSignal()` permet de **le consommer comme un
+signal** et de garder **tout le composant en signals**. C'est **le pont RxJS → Signals** à retenir :
+
+```ts
+readonly value = toSignal(unObservable$, { initialValue: /* … */ });
+```
+
+> **À retenir** : `translateObjectSignal` / `translateSignal` viennent de **Transloco** (traductions en
+> signal) ; **`toSignal()` vient d'Angular** (n'importe quel Observable → signal). Même but ici :
+> **zéro `subscribe`, zéro `async` pipe** → 100 % signals.
 
 ---
 

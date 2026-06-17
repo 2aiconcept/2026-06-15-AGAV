@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { CompaniesState, CompanyService } from '@mini-crm/companies/data-access';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { CompaniesState } from '@mini-crm/companies/data-access';
 import { Router } from '@angular/router';
 import { CompanyPayload } from '@mini-crm/companies/util';
 import { FormCompany } from '@mini-crm/companies/ui';

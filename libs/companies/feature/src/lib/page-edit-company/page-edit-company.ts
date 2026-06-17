@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { CompaniesState, CompanyService } from '@mini-crm/companies/data-access';
+import { CompaniesState } from '@mini-crm/companies/data-access';
 import { Company, CompanyPayload } from '@mini-crm/companies/util';
 import { FormCompany } from '@mini-crm/companies/ui';
 
