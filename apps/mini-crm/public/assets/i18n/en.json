@@ -1,0 +1,20 @@
+{
+  "connect": {
+    "signinTitle": "Sign in",
+    "signupTitle": "Sign up",
+    "email": "Email address",
+    "password": "Password",
+    "signinButton": "Sign in",
+    "signupButton": "Create account",
+    "noAccount": "Don't have an account yet?",
+    "createAccountLink": "Create an account",
+    "haveAccount": "Already have an account?",
+    "signinLink": "Sign in",
+    "errors": {
+      "emailRequired": "Email is required.",
+      "emailInvalid": "The email address format is invalid.",
+      "passwordRequired": "Password is required.",
+      "passwordMinLength": "Password must be at least 6 characters long."
+    }
+  }
+}

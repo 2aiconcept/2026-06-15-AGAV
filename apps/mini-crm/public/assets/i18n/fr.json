@@ -1,0 +1,20 @@
+{
+  "connect": {
+    "signinTitle": "Connexion",
+    "signupTitle": "Inscription",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "signinButton": "Se connecter",
+    "signupButton": "Créer un compte",
+    "noAccount": "Pas encore de compte ?",
+    "createAccountLink": "Créer un compte",
+    "haveAccount": "Déjà un compte ?",
+    "signinLink": "Se connecter",
+    "errors": {
+      "emailRequired": "Le champ e-mail est obligatoire.",
+      "emailInvalid": "Le format de l'adresse e-mail est invalide.",
+      "passwordRequired": "Le mot de passe est obligatoire.",
+      "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères."
+    }
+  }
+}

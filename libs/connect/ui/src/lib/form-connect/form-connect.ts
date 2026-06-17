@@ -5,12 +5,34 @@ import {
   linkedSignal,
   output,
   signal,
+  Signal,
 } from '@angular/core';
 import { email, form, minLength, required, FormField } from '@angular/forms/signals';
+import { translateObjectSignal } from '@jsverse/transloco';
 import { Credentials } from '@mini-crm/shared/util';
 
 type ConnectMode = 'signin' | 'signup';
 const PASSWORD_MIN_LENGTH = 6;
+
+/** Forme des traductions du namespace `connect` (cf. `assets/i18n/*.json`). */
+interface ConnectTranslations {
+  signinTitle: string;
+  signupTitle: string;
+  email: string;
+  password: string;
+  signinButton: string;
+  signupButton: string;
+  noAccount: string;
+  createAccountLink: string;
+  haveAccount: string;
+  signinLink: string;
+  errors?: {
+    emailRequired: string;
+    emailInvalid: string;
+    passwordRequired: string;
+    passwordMinLength: string;
+  };
+}
 
 @Component({
   selector: 'app-form-connect',
@@ -20,6 +42,11 @@ const PASSWORD_MIN_LENGTH = 6;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormConnect {
+  /** Traductions du namespace `connect` — signal réactif au changement de langue. */
+  // `| undefined` : le signal peut être vide tant que le fichier de langue n'est pas chargé
+  // (d'où les `?.` côté template), et il se met à jour au changement de langue.
+  protected readonly t = translateObjectSignal('connect') as Signal<ConnectTranslations | undefined>;
+
   // signal input()
   model = input.required<Credentials>();
   // signalOutput()
@@ -35,14 +62,15 @@ export class FormConnect {
     this.mode.update((current) => (current === 'signin' ? 'signup' : 'signin'));
   }
 
-  /** Signal form : valeur + validation déclarative. */
+  /**
+   * Signal form : validation déclarative. Les messages ne sont PAS définis ici — ils sont
+   * affichés (traduits) côté template selon l'état du champ, pour rester réactifs à la langue.
+   */
   protected readonly connectForm = form<Credentials>(this.modelForm, (path) => {
-    required(path.email, { message: 'Le champs email est obligatoire' });
-    email(path.email, { message: "Le format de l'adresse email est invalide" });
-    required(path.password, { message: 'Le mot de passe est obligatoire' });
-    minLength(path.password, PASSWORD_MIN_LENGTH, {
-      message: `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`,
-    });
+    required(path.email);
+    email(path.email);
+    required(path.password);
+    minLength(path.password, PASSWORD_MIN_LENGTH);
   });
 
   /** Soumission : route vers signin ou signup selon le mode. */
