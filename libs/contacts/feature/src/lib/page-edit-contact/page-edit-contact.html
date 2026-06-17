@@ -1,1 +1,11 @@
-<p>page-edit-contact works!</p>
+<h1 class="h3 mb-3">Modifier un contact</h1>
+
+@if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+}
+
+@if (initialValue(); as value) {
+  <app-form-contact [initialValue]="value" submitLabel="Enregistrer" (save)="onSave($event)" />
+} @else if (!error()) {
+  <p aria-live="polite">Chargement…</p>
+}

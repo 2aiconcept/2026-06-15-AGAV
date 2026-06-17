@@ -1,1 +1,7 @@
-<p>page-add-contact works!</p>
+<h1 class="h3 mb-3">Ajouter un contact</h1>
+
+@if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+}
+
+<app-form-contact submitLabel="Ajouter" (save)="onSave($event)" />

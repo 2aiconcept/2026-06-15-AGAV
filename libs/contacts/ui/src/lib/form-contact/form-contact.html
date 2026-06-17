@@ -1,1 +1,68 @@
-<p>form-contact works!</p>
+<form class="d-flex flex-column gap-3" (submit)="onSubmit($event)" novalidate>
+  <div>
+    <label for="nom" class="form-label">Nom</label>
+    <input
+      id="nom"
+      type="text"
+      class="form-control"
+      [formField]="contactForm.nom"
+      [attr.aria-invalid]="contactForm.nom().touched() && contactForm.nom().invalid()"
+      aria-describedby="nom-errors"
+    />
+    @if (contactForm.nom().touched() && contactForm.nom().invalid()) {
+      <div id="nom-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of contactForm.nom().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="prenom" class="form-label">Prénom</label>
+    <input
+      id="prenom"
+      type="text"
+      class="form-control"
+      [formField]="contactForm.prenom"
+      [attr.aria-invalid]="contactForm.prenom().touched() && contactForm.prenom().invalid()"
+      aria-describedby="prenom-errors"
+    />
+    @if (contactForm.prenom().touched() && contactForm.prenom().invalid()) {
+      <div id="prenom-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of contactForm.prenom().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="email" class="form-label">Email</label>
+    <input
+      id="email"
+      type="email"
+      class="form-control"
+      autocomplete="email"
+      [formField]="contactForm.email"
+      [attr.aria-invalid]="contactForm.email().touched() && contactForm.email().invalid()"
+      aria-describedby="email-errors"
+    />
+    @if (contactForm.email().touched() && contactForm.email().invalid()) {
+      <div id="email-errors" class="text-danger small mt-1" aria-live="polite">
+        @for (error of contactForm.email().errors(); track error.kind) {
+          <div>{{ error.message }}</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div>
+    <label for="telephone" class="form-label">Téléphone</label>
+    <input id="telephone" type="tel" class="form-control" [formField]="contactForm.telephone" />
+  </div>
+
+  <button type="submit" class="btn btn-primary" [disabled]="contactForm().invalid()">
+    {{ submitLabel() }}
+  </button>
+</form>

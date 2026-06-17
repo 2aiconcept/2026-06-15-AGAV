@@ -1,0 +1,46 @@
+<table class="table table-striped align-middle">
+  <caption class="visually-hidden">
+    Liste des contacts
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Nom</th>
+      <th scope="col">Prénom</th>
+      <th scope="col">Email</th>
+      <th scope="col">Téléphone</th>
+      <th scope="col" class="text-end">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (contact of contacts(); track contact.id) {
+      <tr>
+        <td>{{ contact.nom }}</td>
+        <td>{{ contact.prenom }}</td>
+        <td>{{ contact.email }}</td>
+        <td>{{ contact.telephone }}</td>
+        <td class="text-end">
+          <div class="btn-group" role="group">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary"
+              (click)="editContactFn(contact.id)"
+            >
+              Éditer
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              (click)="deleteContactFn(contact.id)"
+            >
+              Supprimer
+            </button>
+          </div>
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="5" class="text-center text-muted">Aucun contact à afficher.</td>
+      </tr>
+    }
+  </tbody>
+</table>

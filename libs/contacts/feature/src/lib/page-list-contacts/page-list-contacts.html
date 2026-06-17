@@ -1,1 +1,24 @@
-<p>page-list-contacts works!</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Contacts</h1>
+  <a class="btn btn-primary" routerLink="../add">Ajouter un contact</a>
+</div>
+
+@if (store.error(); as error) {
+  <div class="alert alert-danger" role="alert">{{ error }}</div>
+}
+
+<app-table-contact
+  [contacts]="store.entities()"
+  (editContact)="editItem($event)"
+  (deleteContact)="pendingDeleteId.set($event)"
+/>
+
+<app-confirm-dialog
+  [open]="pendingDeleteId() !== null"
+  title="Supprimer le contact"
+  message="Voulez-vous vraiment supprimer ce contact ? Cette action est irréversible."
+  confirmLabel="Supprimer"
+  cancelLabel="Annuler"
+  (confirmed)="confirmDelete()"
+  (cancelled)="pendingDeleteId.set(null)"
+/>

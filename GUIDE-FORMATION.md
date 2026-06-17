@@ -723,6 +723,33 @@ export const CompaniesStore = signalStore({ providedIn: 'root' }, withCrud<Compa
 > `with-crud.ts` devient la seule source de vérité du CRUD. C'est un choix **pédagogique**, pas un
 > patron à laisser en l'état.
 
+### Appliquer la recette aux autres features (TP)
+
+> Une fois `companies` fait en live, les stagiaires **répliquent la même recette** sur `contacts` et
+> `orders`. C'est identique **à la lettre** — seuls **le modèle** et **l'URL de ressource** changent.
+
+**Recette, par feature :**
+
+1. **`util`** : l'interface + `XxxPayload = Omit<Xxx, 'id'>` (cf. **Annexe A**).
+2. **`data-access`** : le store en **une ligne** —
+   `export const XxxStore = signalStore({ providedIn: 'root' }, withCrud<Xxx>('<resource>'));`
+3. **`ui`** : `table-xxx` (dumb, `input`/`output`) + `form-xxx` (signal form, `required` sur les
+   champs obligatoires).
+4. **`feature`** : pages `list` (allégée : `routerLink`, bindings inline, message statique) / `add` /
+   `edit`, branchées sur le store (`store.entities()` / `store.error()` + `load`/`add`/`update`/`remove`).
+
+**Spécifique par domaine :**
+
+| Feature | Modèle (champs) | Store |
+| --- | --- | --- |
+| `companies` | `Company` : nom, secteur, adresse, telephone | `withCrud<Company>('entreprises')` |
+| `contacts` | `Contact` : nom, prenom, email, telephone, entreprise_id | `withCrud<Contact>('contacts')` |
+| `orders` | `Opportunite` : titre, description, montant, statut, contact_id, entreprise_id | `withCrud<Opportunite>('opportunites')` |
+
+> Comme l'**API exposée par `withCrud` est identique** (`entities`/`isLoading`/`error` +
+> `load`/`loadOne`/`add`/`update`/`remove`), **seuls les noms changent** : les pages se calquent sur
+> `companies`. C'est tout l'objectif du TP — vérifier l'autonomie des stagiaires sur la recette.
+
 ---
 
 ## Performances — passage en *zoneless* (Angular 21)
