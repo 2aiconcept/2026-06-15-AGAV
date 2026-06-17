@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "nx serve",
+    "serve:prod": "nx serve mini-crm --configuration=production",
     "build": "nx build",
     "watch": "nx build --watch --configuration development",
     "test": "nx test",

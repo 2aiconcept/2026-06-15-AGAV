@@ -15,6 +15,8 @@
       "executor": "@angular/build:application",
       "options": {
         "browser": "apps/mini-crm/src/main.ts",
+        "polyfills": [], //  zoneless : on n'inclut plus zone.js
+
         "tsConfig": "apps/mini-crm/tsconfig.app.json",
         "assets": [
           {

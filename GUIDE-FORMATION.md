@@ -597,6 +597,20 @@ et leurs pages **ne changent pas** (signatures identiques) : `withEntities` ne t
 `libs/shared/data-access/src/lib/with-crud.ts` (exporté par le barrel) :
 
 ```ts
+import { inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { patchState, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
+import {
+  addEntity,
+  removeEntity,
+  setAllEntities,
+  updateEntity,
+  withEntities,
+} from '@ngrx/signals/entities';
+import { firstValueFrom } from 'rxjs';
+import { API_BASE_URL } from '@mini-crm/shared/util';
+
+/** Toute entité gérée par withCrud doit avoir un `id` numérique (clé de la collection). */
 export type WithId = { id: number };
 
 export function withCrud<T extends WithId>(resource: string) {
@@ -661,10 +675,30 @@ export const ContactsStore  = signalStore({ providedIn: 'root' }, withCrud<Conta
 export const OrdersStore    = signalStore({ providedIn: 'root' }, withCrud<Opportunite>('opportunites'));
 ```
 
-- **`signalStoreFeature(...)`** = la façon NgRx de **packager** un groupe de features réutilisable
-  (`withEntities` + `withState` + `withMethods`) sous une seule fonction.
-- **`<T extends WithId>`** rend la logique générique ; **`resource`** = le segment d'URL collé à
-  `API_BASE_URL`.
+**Décryptage de `with-crud.ts` :**
+
+- **`signalStoreFeature(...)`** : empaquette plusieurs features (`withEntities` + `withState` +
+  `withMethods`) en **une feature réutilisable** qu'on branche ensuite dans n'importe quel
+  `signalStore`. C'est le mécanisme NgRx de composition/réutilisation.
+- **`withEntities<T>()`** : fournit la **collection normalisée** (`entityMap`, `ids`) + le signal
+  `entities`, et les updaters `setAllEntities` / `addEntity` / `updateEntity` / `removeEntity`. La clé
+  est **`id` par défaut** (type `EntityId` = `string | number`) — d'où la contrainte `WithId` qui
+  impose un `id: number`.
+- **`withState<{ isLoading; error }>`** : l'état transverse que `withEntities` ne couvre pas (le
+  chargement et l'erreur).
+- **`withMethods((store, http = inject(HttpClient), url = …) => …)`** : la fabrique s'exécute **dans
+  le contexte d'injection**, donc on **injecte `HttpClient`** et on **lit `API_BASE_URL`**
+  directement en **valeurs par défaut des paramètres** (pattern concis, pas de constructeur). `url` =
+  `API_BASE_URL` + `resource`.
+- **`Omit<T, 'id'>`** (payload d'`add`/`update`) = l'entité **sans `id`** — l'équivalent **générique**
+  de `CompanyPayload` / `OrderPayload`.
+- **`patchState(store, updater, …)`** accepte **plusieurs updaters** : d'où
+  `patchState(store, setAllEntities(items), { isLoading: false })`.
+- **Les deux seuls « paramètres » qui changent** d'un domaine à l'autre : le **type `T`** et la
+  **`resource`** (segment d'URL). Tout le reste est mutualisé.
+- ⚠️ **Le typage générique est la partie avancée** (combiner `signalStoreFeature` + `withEntities<T>`
+  en générique). Ça compile (vérifié au `tsc`), mais c'est **moins lisible** qu'un store explicite →
+  à réserver à un public qui a **digéré V1 et V2**.
 - **Quand l'introduire** : quand on se surprend à réécrire le **2ᵉ/3ᵉ** store identique. Pas avant
   (abstraction prématurée).
 
@@ -688,6 +722,102 @@ export const CompaniesStore = signalStore({ providedIn: 'root' }, withCrud<Compa
 > dérouler l'avant/après au tableau et y revenir. **En code de production, on les supprime** :
 > `with-crud.ts` devient la seule source de vérité du CRUD. C'est un choix **pédagogique**, pas un
 > patron à laisser en l'état.
+
+---
+
+## Performances — passage en *zoneless* (Angular 21)
+
+> Module **perf** de fin de parcours. L'app étant **100 % signals + OnPush**, elle est la candidate
+> idéale au **zoneless** : on retire **Zone.js** et la détection de changement n'est plus pilotée que
+> par les signals (moins de cycles, bundle plus léger). C'est un réglage **au niveau de l'app**, pas
+> d'une feature.
+
+**1. `apps/mini-crm/src/app/app.config.ts` — activer le zoneless**
+
+```ts
+import { provideZonelessChangeDetection } from '@angular/core';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZonelessChangeDetection(), // 👈 CD pilotée par les signals, plus par Zone.js
+    // … reste des providers (router, httpClient, API_BASE_URL, …)
+  ],
+};
+```
+
+**2. Config de build — exclure Zone.js du bundle**
+
+Dans `apps/mini-crm/project.json` (l'**équivalent Nx d'`angular.json`**), sous `targets.build.options` :
+
+```jsonc
+"polyfills": [] // 👈 zoneless : on n'inclut plus zone.js
+```
+
+> `zone.js` n'est pas déclaré dans `package.json` (juste transitif) : `polyfills: []` suffit à
+> l'exclure du build. Sans cette ligne, le builder l'injecte par défaut.
+
+**3. `package.json` — un script pour servir/mesurer en production**
+
+```json
+"serve:prod": "nx serve mini-crm --configuration=production"
+```
+
+**Mesurer le gain (Lighthouse) — la bonne méthode**
+
+- ⚠️ Mesurer en **production**, jamais en dev : `npm start` (= configuration *development*) est
+  **non représentatif** (non minifié, source maps).
+- `npm run serve:prod` → http://localhost:4200 (AOT, minifié, **sans zone.js**).
+- Chrome en **navigation privée** → DevTools → onglet **Lighthouse** → catégorie **Performance**
+  (garder le même device Mobile/Desktop pour comparer avant/après).
+- Vérifier d'abord **aucune erreur `NG0908`** en console = le zoneless fonctionne avec le code
+  tout-signaux.
+- Gains attendus : **bundle JS plus léger** (zone.js retiré), **Total Blocking Time** / temps de
+  scripting en baisse, démarrage plus rapide.
+
+**Pour aller plus loin (selon le temps)**
+
+- `@defer` (chargement différé du lourd / hors-écran), **cache « load once »** dans le store,
+  `NgOptimizedImage`, allègement du CSS Bootstrap, budgets dans la config de build, **SSR +
+  hydratation incrémentale** (le code est déjà SSR-safe).
+- À l'inverse, **virtual scroll** (`cdk-virtual-scroll-viewport`) est **prématuré** à cette échelle
+  (quelques dizaines de lignes) — le `track` du `@for` suffit.
+
+> **Réflexe** : **mesurer avant d'optimiser** (Lighthouse, Profiler d'Angular DevTools, analyse de
+> bundle). À cette échelle, le meilleur rapport gain/effort = **zoneless** + **cache `load once`**.
+
+### SSR — pertinent ou pas pour cette app ?
+
+> Le code est **SSR-safe** dès le départ (contrainte transverse), donc le SSR est **activable sans
+> crash**. Mais **faut-il** l'activer ? Pour ce CRM **derrière un login**, le gain est **marginal** —
+> et l'authentification pose un vrai souci.
+
+**Gain de perf : faible ici.** Le SSR sert surtout le **SEO** et le **premier rendu de contenu** sur
+des pages **publiques**. Or :
+
+- tout est derrière `/connect` → **aucun SEO** à gagner ;
+- la 1ʳᵉ page est le **formulaire de login** (minuscule) → le pré-rendre n'apporte presque rien ;
+- les écrans de données ont besoin du **token JWT**, **absent côté serveur** (voir ci-dessous) → le
+  serveur ne peut **rien pré-charger** → c'est le client qui fetch après hydratation. **Zéro avantage
+  de pré-fetch** sur les écrans utiles.
+
+→ Le vrai levier perf reste le **JS (zoneless)**, pas le SSR.
+
+**Points d'attention si on l'activait :**
+
+| Sujet | Verdict |
+| --- | --- |
+| **Lazy loading** (`loadComponent` / `loadChildren`) | ✅ OK avec `@angular/ssr` (le serveur rend la route lazy) |
+| **`PreloadAllModules`** | ✅ OK — stratégie **côté client** uniquement, ignorée au rendu serveur (pas de conflit) |
+| **Authentification (`localStorage`)** | ⚠️ **Le vrai problème** : le token n'existe pas côté serveur → le guard rend « déconnecté » → **redirection `/connect` + flicker / mismatch** à l'hydratation. Vraie solution SSR = token en **cookie `httpOnly`** (lisible côté serveur) → **ré-architecture** de l'auth. |
+
+**Conclusion** : pour cette app, **ne pas activer le SSR** (mauvais rapport gain/complexité + flicker
+d'auth avec `localStorage`). On **garde le code SSR-safe** (bonne hygiène, et ça laisse la porte
+ouverte). Le seul scénario qui aurait du sens : **pré-rendre (SSG) la page de login publique** pour un
+premier paint instantané — sans le souci d'auth, puisque le login n'a pas besoin du token.
+
+> **À retenir** : le SSR est fait pour le **contenu public / SEO**, pas pour un **dashboard derrière
+> login**. Et une auth par `localStorage` n'est **pas** compatible SSR « propre » — il faut des
+> **cookies** pour que le serveur connaisse l'utilisateur.
 
 ---
 

@@ -1,5 +1,35 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 m-0">Commandes</h1>
+  <a class="btn btn-primary" routerLink="../add">Ajouter une commande</a>
+</div>
+
+@if (store.error(); as error) {
+  <div class="alert alert-danger" role="alert">{{ error }}</div>
+}
+
+<app-table-order
+  [orders]="store.entities()"
+  (editOrder)="editItem($event)"
+  (deleteOrder)="pendingDeleteId.set($event)"
+/>
+
+<app-confirm-dialog
+  [open]="pendingDeleteId() !== null"
+  title="Supprimer la commande"
+  message="Voulez-vous vraiment supprimer cette commande ? Cette action est irréversible."
+  confirmLabel="Supprimer"
+  cancelLabel="Annuler"
+  (confirmed)="confirmDelete()"
+  (cancelled)="pendingDeleteId.set(null)"
+/>
+
+<!-- =============================================================================================
+     ANCIENNE VERSION (avant allègement) — conservée pour comparaison en formation.
+     Différences : bouton → <a routerLink>, état lu via store.entities()/store.error(),
+     (deleteOrder)/(cancelled) en bindings inline, message statique (plus de computed).
+     =============================================================================================
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Commandes</h1>
   <button type="button" class="btn btn-primary" (click)="onAddOrder()">Ajouter une commande</button>
 </div>
 
@@ -22,3 +52,4 @@
   (confirmed)="confirmDelete()"
   (cancelled)="cancelDelete()"
 />
+     ============================================================================================= -->

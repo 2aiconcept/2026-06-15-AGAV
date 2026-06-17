@@ -6,7 +6,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { CompanyService } from '@mini-crm/companies/data-access';
+import { CompaniesState, CompanyService } from '@mini-crm/companies/data-access';
 import { Router } from '@angular/router';
 import { TableCompany } from '@mini-crm/companies/ui';
 import { ConfirmDialog } from '@mini-crm/shared/ui';
@@ -19,16 +19,16 @@ import { ConfirmDialog } from '@mini-crm/shared/ui';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class PageListCompanies implements OnInit {
-  // INJECT COMPANY SERVICE
-  private readonly companyService = inject(CompanyService);
+  // INJECT COMPANY store
+  private readonly companiesStore = inject(CompaniesState);
 
   // INJECT ROUTER
   private readonly router = inject(Router);
 
   // SIGNAL FOR COMPANIES COLLECTION
-  protected readonly companies = this.companyService.companies;
+  protected readonly companies = this.companiesStore.companies;
   // SIGNAL FOR API ERRORS
-  protected readonly error = this.companyService.error;
+  protected readonly error = this.companiesStore.error;
 
   // Id de l'entreprise dont la suppression est en attente de confirmation
   // (null = aucune confirmation en cours, la modale est fermée).
@@ -47,11 +47,8 @@ export default class PageListCompanies implements OnInit {
   });
 
   ngOnInit(): void {
-    this.companyService.load();
-    console.log(this.companies());
+    this.companiesStore.load();
   }
-
-  // SIGNAL  COMPUTED TO PASS COMPANY NAME TO DIALOG BOX WITH PERSONNAL MESSAGE
 
   // METHOD TO REDIRECT TO ADD
   /** Redirige vers le formulaire d'ajout d'une entreprise. */
@@ -72,7 +69,7 @@ export default class PageListCompanies implements OnInit {
   protected confirmDelete(): void {
     const id = this.pendingDeleteId();
     if (id !== null) {
-      this.companyService.remove(id);
+      // this.companiesStore.remove(id);
     }
     this.pendingDeleteId.set(null);
   }

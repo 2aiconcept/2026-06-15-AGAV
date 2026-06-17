@@ -1,4 +1,8 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  provideBrowserGlobalErrorListeners,
+  provideZonelessChangeDetection,
+} from '@angular/core';
 import {
   PreloadAllModules,
   provideRouter,
@@ -15,6 +19,7 @@ import { environment } from '../environments/environment';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    provideZonelessChangeDetection(), //  plus de Zone.js : CD pilotée par les signals
     // withComponentInputBinding : lie les paramètres de route (ex. :id) aux input() du composant.
     provideRouter(routes, withPreloading(PreloadAllModules), withComponentInputBinding()),
     provideHttpClient(withInterceptors([authInterceptor])),
@@ -22,9 +27,3 @@ export const appConfig: ApplicationConfig = {
     { provide: API_BASE_URL, useValue: environment.apiBaseUrl },
   ],
 };
-
-// montrer dans la doc pourquoi les .then sont inutiles dans le lazyloading de components
-// monter comment modeifier angular.json pour avoir d'offiche le OnPush à la creation de components avec angular cli
-// exercice découpage des rolutes pour toutes les features
-// envrironements avec switch dev vs prod dans angular.json
-// libs et nx
