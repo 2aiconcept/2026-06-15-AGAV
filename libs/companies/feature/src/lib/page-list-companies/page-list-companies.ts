@@ -6,7 +6,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { CompaniesState, CompanyService } from '@mini-crm/companies/data-access';
+import { CompaniesState } from '@mini-crm/companies/data-access';
 import { Router } from '@angular/router';
 import { TableCompany } from '@mini-crm/companies/ui';
 import { ConfirmDialog } from '@mini-crm/shared/ui';
@@ -26,7 +26,7 @@ export default class PageListCompanies implements OnInit {
   private readonly router = inject(Router);
 
   // SIGNAL FOR COMPANIES COLLECTION
-  protected readonly companies = this.store.companies;
+  protected readonly companies = this.store.entities;
   // SIGNAL FOR API ERRORS
   protected readonly error = this.store.error;
 
